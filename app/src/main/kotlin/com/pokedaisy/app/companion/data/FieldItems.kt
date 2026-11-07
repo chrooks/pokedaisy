@@ -276,6 +276,17 @@ val FIELD_ITEMS_MONOMYTH = FieldItemFns(
 )
 
 /**
+ * Monomyth v1.1: the same functions, moved (found by the CRCs of their first 32 bytes, which v1.0's are): VarGet / VarSet
+ * +0x1CC, ArePlayerFieldControlsLocked +0x1EC, ScriptContext_SetupScript +0x1F0 (0x08090A60: its pool names gScriptCmdTable
+ * 0x082980D8; a BL inside its first 32 bytes moved, so its CRC is new), ShowPokemonStorageSystemPC +0x294 (gSpecials 0x08298510,
+ * special 57 still). Headless on the user's v1.1 save: `special 57` through it opened the PC (BOX 1 showed).
+ */
+val FIELD_ITEMS_MONOMYTH_V1_1 = FIELD_ITEMS_MONOMYTH.copy(
+    varGet = 0x08096234L, varSet = 0x0809626CL, fieldControlsLocked = 0x080909D0L,
+    pc = PcFns(0x08090A60L, 57, 0x08298510L, 0x080C6535L, listOf(0xCC9E3CD3L, 0x3DECE7E0L)),
+)
+
+/**
  * Emerald Imperium 1.3.1 (pokeemerald-expansion 1.10.0, no source): pokeemerald-expansion's 1.10.0 tag built plain with
  * Debian's arm-none-eabi-gcc 12 as the reference, each function found in Imperium by its first instructions (literal
  * loads / BLs masked); the field-lock trio by its byte (EXPAND's CONTROLS_LOCKED, 0x03000E84), ReturnToFieldFromFlyMapSelect

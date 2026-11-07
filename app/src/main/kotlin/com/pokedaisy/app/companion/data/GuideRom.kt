@@ -1058,6 +1058,15 @@ val GUIDE_TABLES_MONOMYTH = GuideTables(
     trainerMonHeader = 4,
 )
 
+/** Monomyth v1.1: gTrainers and the learnsets +0x488 (trainer 1 is still Tim), gWildMonHeaders +0x42C, gMapGroups +0x4D0
+ * (map 2.5's header names CATSEAR CITY, 0.12's ROUTE 1); the save's flags and vars where v1.0 keeps them. */
+val GUIDE_TABLES_MONOMYTH_V1_1 = GUIDE_TABLES_MONOMYTH.copy(
+    trainers = 0x084B710CL,
+    learnsets = 0x08506AD4L,
+    wildHeaders = 0x089C3284L,
+    mapGroups = 0x0886F3A8L,
+)
+
 /**
  * Pokémon Dreamstone Mysteries (pokeemerald-expansion 1.11.2), from the ROM: gTrainers is [3][855] 0x28-byte records
  * from 0x085837E4 (GetTrainerDifficultyLevel: VarGet(0x40A8) picks the table, a NULL party there falls back to the second);

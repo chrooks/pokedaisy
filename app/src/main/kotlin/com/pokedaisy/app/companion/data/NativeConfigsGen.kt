@@ -3898,6 +3898,37 @@ val NATIVE_MONOMYTH = NATIVE_EMERALD.copy(
     guideTables = GUIDE_TABLES_MONOMYTH,
 )
 
+// Pokémon Monomyth v1.1 (32 MB, sha1 eb660caf…; patched from Emerald with Team Monomyth's .bps, 2026-11-03): the same build
+// under the game code BPEE (title POKEMON MONO), so detect() reads it in the large-BPEE hash list, not under MONE. Mapped
+// from the v1.1 ROM alone (no v1.0 ROM: each table found where the v1.0 one's bytes recur, then checked by content) and
+// headless on the user's v1.1 save (0:01 played, the first bedroom in CHAMOMILE TOWN, no Pokémon: ₽3,000, map 1.1, pos
+// (5, 7)); the v1.0 fixture's party written into gPlayerParty drew in its party menu as v1.0's did, and v1.0's scripted
+// wild POLIWAG ran through its ScriptContext_SetupScript (monomyth_v1_1* fixtures):
+// - RAM: every v1.0 address holds (save-block pointers, party, bag pockets, gMain, gMapHeader, the battle globals and
+// cursors: RIGHT walked the action cursor 0 -> 1, FIGHT / BAG / POKéMON each swapped gBattlerControllerFuncs[0]).
+// - Code moved: the battle input handlers sit 0x28 bytes earlier (read live in the battle: action 0x08048521, move
+// 0x08048E41, bag 0x0804AC95, party 0x0804ABCD; HandleInputChooseTarget 0x080487F9 by the same shift, a PUSH there), the
+// field functions 0x1CC-0x294 later (FIELD_ITEMS_MONOMYTH_V1_1, their first 32 bytes' CRCs unchanged).
+// - ROM tables moved piecewise: +0x488 for the species block (names, base stats, EXP, moves, types, chart, abilities,
+// species -> dex number, evolutions, learnsets, trainers), +0x48C for the pictures and palettes, +0x418 for the dex entries,
+// gItems, icons and map sections, +0x42C wild headers, +0x40C natures and item icons, +0x4D0 gMapGroups. The display
+// tables scripts/gen_monomyth_tables.py reads are byte for byte v1.0's (MonomythGen.kt serves both).
+val NATIVE_MONOMYTH_V1_1 = NATIVE_MONOMYTH.copy(
+    itemDescs = ItemDescTable(0x089F19E8L, 0x20, 0x18, count = 447),
+    handleInputChooseAction = 0x08048521L,
+    handleInputChooseMove = 0x08048E41L,
+    completeWhenChoseItem = 0x0804AC95L,
+    waitForMonSelection = 0x0804ABCDL,
+    handleInputChooseTarget = 0x080487F9L,
+    monIconTable = 0x089DF964L,
+    monIconPaletteIndices = 0x089DFFBCL,
+    monIconPaletteTable = 0x089E0154L,
+    itemIconTable = 0x08AAFE0CL,
+    pokedex = POKEDEX_MONOMYTH_V1_1,
+    fieldItems = FIELD_ITEMS_MONOMYTH_V1_1,
+    guideTables = GUIDE_TABLES_MONOMYTH_V1_1,
+)
+
 // ---- gamedata/gen3/hacks/odyssey.toml ----
 
 // Pokemon Odyssey (English) v4.1.1 - a 32 MB BPRE hack like the others above.
