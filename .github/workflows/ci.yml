@@ -58,6 +58,13 @@ jobs:
       - name: Debug APK (Kotlin + the native mGBA / rcheevos build)
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      - name: Debug APK artifact (sideload a fork build without a release)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pokedaisy-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
