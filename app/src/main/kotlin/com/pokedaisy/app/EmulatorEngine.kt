@@ -137,6 +137,9 @@ class EmulatorEngine(
     @Volatile private var tmSites: List<com.pokedaisy.app.companion.data.ReusableTms.Site> = emptyList()
     @Volatile private var reusableTms = false
     @Volatile private var tmPatchDirty = false
+    /** WILD ENCOUNTERS' gate function (`NativeConfig.wildGate`, [com.pokedaisy.app.companion.data.WildEncounters.Gate]; 0 = none), patched while OFF. */
+    @Volatile var wildGate = 0L
+    private var wildGatePatched = false
 
     fun setReusableTms(sites: List<com.pokedaisy.app.companion.data.ReusableTms.Site>, on: Boolean) {
         tmSites = sites
@@ -1734,13 +1737,21 @@ class EmulatorEngine(
     private fun applyTmPatch() {
         tmPatchDirty = false
         MgbaCore.pkRomUnpatch()
+        // WILD ENCOUNTERS on a game with a gate function instead of a switch: patched to say "no encounter" while OFF.
+        val gate = wildGate
+        wildGatePatched = gba && gate != 0L && wildEncounters == 0
+        if (wildGatePatched) {
+            val g = com.pokedaisy.app.companion.data.WildEncounters.Gate
+            wildGatePatched = MgbaCore.pkRomPatch(gate, g.PROLOGUE, gate, g.RETURN_1)
+            Log.i("pokedaisy", "wild encounters gate: ${if (wildGatePatched) "patched" else "code didn't match"}")
+        }
         val sites = tmSites
         if (!gba || !reusableTms || sites.isEmpty()) return
         val all = sites.all {
             MgbaCore.pkRomPatch(it.at, it.expect, it.branch, com.pokedaisy.app.companion.data.ReusableTms.ALWAYS_SKIP)
         }
         // All or none: a ROM that only matched in part would still use TMs up on the other paths.
-        if (!all) MgbaCore.pkRomUnpatch()
+        if (!all) { MgbaCore.pkRomUnpatch(); wildGatePatched = false; tmPatchDirty = true }
         Log.i("pokedaisy", "reusable TMs: ${if (all) "${sites.size} site(s) patched" else "code didn't match"}")
     }
 
@@ -1785,7 +1796,9 @@ class EmulatorEngine(
         repeat(emuJobs.size) { emuJobs.poll()?.let { job -> runCatching(job).onFailure { Log.e("pokedaisy", "emu job failed", it) } } }
         if (cheatsDirty) applyCheats()
         // Never during a co-op battle: both reach pkRomUnpatch / pkRomUnblock, which uninstall co-op (they stay dirty until it ends).
-        if (tmPatchDirty && !CoopGuards.battleActive()) { applyTmPatch(); coopLock?.requestReinstall() }
+        wildGate = com.pokedaisy.app.companion.data.activeNativeConfig?.wildGate ?: 0L
+        val wantGate = gba && wildGate != 0L && wildEncounters == 0
+        if ((tmPatchDirty || wantGate != wildGatePatched) && !CoopGuards.battleActive()) { applyTmPatch(); coopLock?.requestReinstall() }
         if (lookDirty && !CoopGuards.battleActive()) { applyLook(); coopLock?.requestReinstall() }
         // The jobs queued by now (one a job queues runs on a later frame); a delayed one waits its frames.
         // Not while co-op holds the game: they call game code (PC, USE, FLY) with no frames advancing; they stay queued.

@@ -3914,6 +3914,9 @@ val NATIVE_MONOMYTH = NATIVE_EMERALD.copy(
 // gItems, icons and map sections, +0x42C wild headers, +0x40C natures and item icons, +0x4D0 gMapGroups. The display
 // tables scripts/gen_monomyth_tables.py reads are byte for byte v1.0's (MonomythGen.kt serves both).
 val NATIVE_MONOMYTH_V1_1 = NATIVE_MONOMYTH.copy(
+    // WILD ENCOUNTERS: no switch byte; StandardWildEncounter (0x080B41EC) first calls this gate, which returns 1 = no
+    // encounter when bit 3 of SaveBlock1 + 0x19E7 is clear (also map 0x111 and var 0x40B1). Patched to return 1 while OFF.
+    wildGate = 0x080B4184L,
     itemDescs = ItemDescTable(0x089F19E8L, 0x20, 0x18, count = 447),
     handleInputChooseAction = 0x08048521L,
     handleInputChooseMove = 0x08048E41L,

@@ -313,6 +313,15 @@ kotlin = 'Long'
 type = 'long'
 default = 0
 
+# WILD ENCOUNTERS where the game has no switch byte: the ROM function StandardWildEncounter
+# calls first, which answers 1 = no encounter (Monomyth: it reads a save bit). The app patches
+# its first instructions to `movs r0, #1; bx lr` while encounters are OFF (WildEncounters.Gate);
+# 0 = none known.
+[field.wildGate]
+kotlin = 'Long'
+type = 'long'
+default = 0
+
 # USE / GIVE / TAKE's functions (FieldItems.kt) for a build with no retail code to key them on (Recharged
 # Emerald's gcc rebuilds); null = by game kind and header code (fieldItemsForGame).
 [field.fieldItems]

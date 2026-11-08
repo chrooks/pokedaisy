@@ -1285,6 +1285,7 @@ class PokeDaisyActivity : Activity() {
             if (::engine.isInitialized) engine.wildEncounters = percent
         }
         override val wildEncountersSupported get() = (fieldGame != WideScreen.OFF && wildFlag != 0L) || gbField() != null ||
+            (com.pokedaisy.app.companion.data.activeNativeConfig?.wildGate ?: 0L) != 0L ||
             romIsNds && ::engine.isInitialized && engine.fieldState and MgbaCore.FIELD_KNOWN != 0
         override val tradeEvolutions get() = Prefs(this@PokeDaisyActivity).tradeEvolutions
         override fun setTradeEvolutions(on: Boolean) { Prefs(this@PokeDaisyActivity).tradeEvolutions = on }

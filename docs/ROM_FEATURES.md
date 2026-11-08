@@ -60,7 +60,8 @@ change to any of the places listed under "Where it's decided" updates its rows h
 | GS Chronicles | 2.7.6 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁹ | — | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | — | — | ✅ ¹⁹ |
 | Heart and Soul | 2.0.6 | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | ◐ ⁶ | — | ✅ | ✅ | — | — | — |
 | Lazarus | 2.0 | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ ¹⁹ |
-| Monomyth | 1.0, 1.1 | ✅ ²³ | ✅ | ✅ | ✅ | — | — | — | ✅ ²³ | — | — ²³ | ✅ ²³ | — | — | — |
+| Monomyth | 1.0 | ✅ ²³ | ✅ | ✅ | ✅ | — | — | — | ✅ ²³ | — | — ²³ | ✅ ²³ | — | — | — |
+| Monomyth | 1.1 | ✅ ²³ | ✅ | ✅ | ✅ | — | — | — | ✅ ²³ | — | ✅ ²³ | ✅ ²³ | — | — | — |
 | Odyssey | 4.1.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | ✅ ¹⁹ |
 | Orange Islands | Beta 5.7, an older beta | ◐ ³ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ ¹⁵ | — | ✅ ¹⁹ ²⁰ |
 | Quetzal | English / Spanish Alpha 9 v0 | ◐ ³ | ✅ | ✅ | ✅ | — | — | — | ◐ ⁶ | — | — | — | — | — | — |
@@ -310,8 +311,12 @@ change to any of the places listed under "Where it's decided" updates its rows h
     sandstorm (all exact); under rain 25 of 440 frames show raindrops a frame late; far-off characters aren't drawn.
     sLockFieldControls 0x0203BF67 (1 under a scripted lockall, 0 after); gPlayerAvatar isn't after gObjectEvents, so no bike / surf. PC
     anywhere: special 57 through its ScriptContext_SetupScript (`FIELD_ITEMS_MONOMYTH`, PC only), opened and closed
-    headless. No WILD ENCOUNTERS: its StandardWildEncounter (0x080B3F58) has no switch to hold (only an immunity-step
-    counter in its caller), and `WildEncounters.find` now passes over a look-alike function there. No bag USE or FLY (its
+    headless. WILD ENCOUNTERS: its StandardWildEncounter (1.0 0x080B3F58, 1.1 0x080B41EC) has no switch byte to hold
+    (`WildEncounters.find` passes over a look-alike function there); it first calls a gate function that answers 1 = no
+    encounter when bit 3 of SaveBlock1 + 0x19E7 is clear (a save bit, so never held from RAM). On 1.1 that gate
+    (0x080B4184, `wildGate` in its config) is patched to `movs r0, #1; bx lr` while OFF, like REUSABLE TMS' patch
+    (`WildEncounters.Gate`): called headless with mgba_dump's `call`, it answered 0 unpatched, 1 patched, 0 again after
+    `romunpatch`. 1.0's gate isn't located (its ROM isn't on this machine): — there. No bag USE or FLY (its
     functions aren't retail's code), and REUSABLE TMS doesn't know its game code.
     v1.1 (2026-11-03, a .bps over Emerald: game code BPEE, title POKEMON MONO, `NATIVE_MONOMYTH_V1_1`) keeps every RAM
     address; its code moved (the battle handlers 0x28 earlier, the field functions 0x1CC-0x294 later) and its ROM tables

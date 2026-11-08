@@ -123,6 +123,8 @@ data class NativeConfig(
     // gPartyMenu, for the battle POKéMON pane's switch where the activity takes
     // it from the config (SoulGold's releases); 0 = not here.
     val partyMenu: Long = 0,
+    /** WILD ENCOUNTERS' gate function in the ROM where the game has no switch byte ([WildEncounters.Gate]); 0 = none. */
+    val wildGate: Long = 0,
     // USE / GIVE / TAKE's functions (FieldItems.kt) for a build with no retail code to key them on (Recharged
     // Emerald's gcc rebuilds); null = by game kind and header code (fieldItemsForGame).
     val fieldItems: FieldItemFns? = null,
