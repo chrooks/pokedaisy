@@ -128,6 +128,8 @@ data class NativeConfig(
     // USE / GIVE / TAKE's functions (FieldItems.kt) for a build with no retail code to key them on (Recharged
     // Emerald's gcc rebuilds); null = by game kind and header code (fieldItemsForGame).
     val fieldItems: FieldItemFns? = null,
+    // LEVEL UP ALL's storage, name and move tables (LevelUpAll.kt); null = the game doesn't offer it.
+    val levelUpAll: LevelUpTables? = null,
     // gEnemyParty (6 encrypted Pokémon structs, like gPlayerParty) for the
     // battle's FOE TEAM; 0 = not known for this game.
     val enemyParty: Long = 0,

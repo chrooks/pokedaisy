@@ -329,6 +329,12 @@ kotlin = 'FieldItemFns?'
 type = 'ref'
 default = 'none'
 
+# LEVEL UP ALL's storage, name and move tables (LevelUpAll.kt); null = the game doesn't offer it.
+[field.levelUpAll]
+kotlin = 'LevelUpTables?'
+type = 'ref'
+default = 'none'
+
 # gEnemyParty (6 encrypted Pokémon structs, like gPlayerParty) for the
 # battle's FOE TEAM; 0 = not known for this game.
 [field.enemyParty]

@@ -3895,6 +3895,7 @@ val NATIVE_MONOMYTH = NATIVE_EMERALD.copy(
     pokedex = POKEDEX_MONOMYTH,
     // PC anywhere (FieldItems.kt's FIELD_ITEMS_MONOMYTH: special 57 through its ScriptContext_SetupScript); no bag USE or FLY.
     fieldItems = FIELD_ITEMS_MONOMYTH,
+    levelUpAll = LEVEL_UP_MONOMYTH,
     guideTables = GUIDE_TABLES_MONOMYTH,
 )
 
@@ -3929,6 +3930,7 @@ val NATIVE_MONOMYTH_V1_1 = NATIVE_MONOMYTH.copy(
     itemIconTable = 0x08AAFE0CL,
     pokedex = POKEDEX_MONOMYTH_V1_1,
     fieldItems = FIELD_ITEMS_MONOMYTH_V1_1,
+    levelUpAll = LEVEL_UP_MONOMYTH_V1_1,
     guideTables = GUIDE_TABLES_MONOMYTH_V1_1,
 )
 

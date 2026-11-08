@@ -76,6 +76,7 @@ itemIconTable = 0x08AAFA00
 pokedex = 'POKEDEX_MONOMYTH'
 # PC anywhere (FieldItems.kt's FIELD_ITEMS_MONOMYTH: special 57 through its ScriptContext_SetupScript); no bag USE or FLY.
 fieldItems = 'FIELD_ITEMS_MONOMYTH'
+levelUpAll = 'LEVEL_UP_MONOMYTH'
 guideTables = 'GUIDE_TABLES_MONOMYTH'
 
 # Pokémon Monomyth v1.1 (32 MB, sha1 eb660caf…; patched from Emerald with Team Monomyth's .bps, 2026-11-03): the same build
@@ -110,4 +111,5 @@ monIconPaletteTable = 0x089E0154
 itemIconTable = 0x08AAFE0C
 pokedex = 'POKEDEX_MONOMYTH_V1_1'
 fieldItems = 'FIELD_ITEMS_MONOMYTH_V1_1'
+levelUpAll = 'LEVEL_UP_MONOMYTH_V1_1'
 guideTables = 'GUIDE_TABLES_MONOMYTH_V1_1'
