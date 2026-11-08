@@ -100,6 +100,16 @@ interface CompanionSettings {
     val shinyOddsChoices: List<Int> get() = com.pokedaisy.app.companion.data.ShinyOdds.CHOICES
     val shinyOddsSupported: Boolean get() = false
 
+    /** LEVEL UP ALL ([com.pokedaisy.app.companion.data.LevelUpOffer]): [levelUpOffer] answers null when the field isn't free;
+     * [levelUpApply] writes the picked plans into the game. */
+    val levelUpAllSupported: Boolean get() = false
+    fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) { done(null) }
+    fun levelUpApply(
+        planned: List<com.pokedaisy.app.companion.data.PlannedRaise>,
+        rules: com.pokedaisy.app.companion.data.LevelUpRules,
+        done: (com.pokedaisy.app.companion.data.LevelUpResult) -> Unit,
+    ) { done(com.pokedaisy.app.companion.data.LevelUpResult.FAILED) }
+
     /** PLAYER LOOK ([com.pokedaisy.app.companion.data.PlayerLook]): [playerLookSupported] = a FireRed / LeafGreen /
      * Emerald game; [playerLooks] = the heroes it can wear now (another game's, kept from the player's own ROMs);
      * [playerLook] = the one worn, by name (null = the game's own). */

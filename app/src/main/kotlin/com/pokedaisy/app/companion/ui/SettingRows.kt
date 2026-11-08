@@ -171,6 +171,7 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "RIVAL LOOK" to "rival look rival costume outfit skin sprite appearance dress up brendan may other hero opponent",
     "PLAYER LOOK" to "player look hero heroine character protagonist trainer costume outfit skin sprite appearance swap play as another game red leaf brendan may",
     "NUZLOCKE" to "nuzlocke challenge hardcore run tracker encounter first catch per route area death dead faint permadeath graveyard dupes clause",
+    "LEVEL UP ALL" to "level up all raise train exp experience grind catch up party box boxes pc highest next boss cap evolve new moves",
     "TRADE EVOS" to "trade evolutions trading evolve evolves evolution evolutions traded link cable friend second game without trading held item",
     "REUSABLE TMS" to "reusable tm tms technical machine machines reuse infinite unlimited keep tm single use consumed used up teach moves",
     "SHINY ODDS" to "shiny shinies shiny odds shiny rate shiny hunting hunt shiny charm sparkle rare color colour chance",

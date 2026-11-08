@@ -50,6 +50,9 @@ object NewFeatures {
     const val REUSABLE_TMS = "reusable_tms"
     /** SETTINGS > TRADE EVOLUTIONS: a trade evolution from the Pokémon's summary (companion.data.TradeEvolution). */
     const val TRADE_EVOLUTIONS = "trade_evolutions"
+    /** SETTINGS > LEVEL UP ALL: the party and PC brought up to one level (companion.data.LevelUpAll). */
+    const val LEVEL_UP_ALL = "level_up_all"
+
     /** SETTINGS > SHINY ODDS: a wild foe shiny at the odds picked (companion.data.ShinyOdds). */
     const val SHINY_ODDS = "shiny_odds"
 
@@ -135,7 +138,7 @@ object NewFeatures {
         HUD, BATTLE_BUTTONS, GAME_HOTKEYS, COMPANION_WINDOW, HUD_PC, QUICK_MENU, HUD_REPEL, SINGLE_SCREEN, MORE_TAB, TOUCH_CONTROLS,
         COMPANION_TAB, REUSABLE_TMS, SHINY_ODDS, UNLIT_SCREEN, LIGHT_COMPANION, X_COMPANION, PLAYER_LOOK, RIVAL_LOOK, TEXT_LOOK, DAY_NIGHT,
         FOLLOWER, COMPANION_HOTKEY, NUZLOCKE, GBA_BUTTONS, DS_RESOLUTION, TIPS, ROMS_FOLDERS, SAVE_BACKUPS, DISCORD, BOXES_TAB,
-        GAME_VOLUME, ROM_PATCH, TRADE_EVOLUTIONS, DS_LAYOUT, DS_CPU_BOOST, LINK_PLAY, BATTLE_FOCUS, THEMES, SAVE_TRADE,
+        GAME_VOLUME, ROM_PATCH, TRADE_EVOLUTIONS, LEVEL_UP_ALL, DS_LAYOUT, DS_CPU_BOOST, LINK_PLAY, BATTLE_FOCUS, THEMES, SAVE_TRADE,
     )
 
     private const val DAYS = 7

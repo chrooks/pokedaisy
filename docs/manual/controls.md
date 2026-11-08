@@ -223,6 +223,24 @@ Only random encounters change. Fishing, moves that lure wild Pokémon out and ba
 
 It works on the Game Boy Advance originals in every language and on almost every supported hack, including the ones rebuilt from newer source code like SoulGold, Lazarus and Recharged Yellow. On the Game Boy it works in Red, Blue, Yellow (in every language), PureRed, PureBlue and Crystal. On Emerald Rogue, Quetzal, Monomyth and the other Game Boy games it shows `N/A`.
 
+## LEVEL UP ALL
+
+`LEVEL UP ALL` brings every Pokémon in your party and PC up to one level. It's in the companion's `GAMEPLAY` group, in the games it works in (Monomyth for now), and it opens from the field: finish any battle, menu or text box first.
+
+Pick how high to go:
+
+- `HIGHEST`: the level of your strongest Pokémon.
+- `NEXT BOSS`: the level of the strongest Pokémon on the next team you haven't beaten. Once every boss is beaten this one reads `N/A`.
+
+Then pick what happens to new moves:
+
+- `SKIP THEM ALL`, the default, leaves every Pokémon's moves as they are.
+- `ASK FOR EACH` asks about each new move a full Pokémon could learn, and fills an empty move slot without asking. Pick a move to forget, `DON'T LEARN IT`, or `SKIP THE REST`.
+
+Pokémon that evolve by reaching a level evolve on the way up, without the animation, and a Pokémon still using its species name takes the new one. Evolutions that need an item, a trade or friendship stay yours to do. A held item that stops evolutions still stops this one. Eggs, and Pokémon already at that level or above it, don't change.
+
+The change is in your running game until you save, so save in the game to keep it. If you change your mind, restart the game before saving.
+
 ## SHINY ODDS
 
 `SHINY ODDS` sets how often a wild Pokémon is shiny. It's in the companion's `GAMEPLAY` group and opens a list:

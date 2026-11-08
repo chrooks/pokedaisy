@@ -215,6 +215,8 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override val reusableTms get() = reusableTmsOn
     override fun setReusableTms(on: Boolean) { reusableTmsOn = on }
     override val reusableTmsSupported get() = true
+    override val levelUpAllSupported get() = true
+    override fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) = done(previewLevelUpOffer())
     private var shinyOddsValue = com.pokedaisy.app.companion.data.ShinyOdds.NORMAL
     override val shinyOdds get() = shinyOddsValue
     override fun setShinyOdds(odds: Int) { shinyOddsValue = odds }
@@ -585,6 +587,24 @@ fun realShinyBattle(state: Int): SnapshotView {
     com.pokedaisy.app.companion.data.DecompIconSource.tables = icons
     // The preview's own battle (connected, its game, its party) with the real battlers in it.
     return battle(state).copy(battlePlayer = real.battlePlayer, battleOpponent = real.battleOpponent)
+}
+
+/** LEVEL UP ALL over made-up records: nine below Lv34, six below the next boss's Lv21, two with a move to answer. */
+private fun previewLevelUpOffer(): com.pokedaisy.app.companion.data.LevelUpOffer {
+    val rules = com.pokedaisy.app.companion.data.LevelUpRules(
+        com.pokedaisy.app.companion.data.MONOMYTH_PARTY_MON, expRow = { null }, baseStats = { null }, movePp = { 20 },
+    )
+    val planned = (0 until 9).map { i ->
+        com.pokedaisy.app.companion.data.PlannedRaise(
+            com.pokedaisy.app.companion.data.RosterSlot(0x02000000L + i * 100, true, ByteArray(100)),
+            com.pokedaisy.app.companion.data.RaisePlan(12, 34, 25, if (i == 0) 1 else 25, if (i < 2) listOf(85) else emptyList()),
+            intArrayOf(33, 45, 98, 84),
+        )
+    }
+    return com.pokedaisy.app.companion.data.LevelUpOffer(
+        rules, com.pokedaisy.app.companion.data.LevelUpChoice(34, planned),
+        com.pokedaisy.app.companion.data.LevelUpChoice(21, planned.take(6)), "SANTANA",
+    )
 }
 
 /** The wild foe shiny (SHINY ODDS' marks). */
@@ -1846,6 +1866,31 @@ fun main(args: Array<String>) {
         },
         Shot("$g-settings-player-look-pick", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("PLAYER LOOK")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // LEVEL UP ALL's pop-ups, one step further each.
+        Shot("$g-settings-level-up-target", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-moves", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-confirm", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("ASK FOR EACH").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-ask", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("ASK FOR EACH").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("RAISE").performSemanticsAction(SemanticsActions.OnClick)
         },
         // SHINY ODDS under REUSABLE TMS, then its pick-list (the debug build's, with 1 IN 4 and 1 IN 1).
         Shot("$g-settings-shiny-odds", bw, bh, bd, companion("SETTINGS")) {

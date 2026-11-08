@@ -407,6 +407,44 @@ class PokeDaisyActivity : Activity() {
      * built once per ROM - the bag's buttons and marks read it while drawing. */
     @Volatile private var fieldSupport: Pair<String, com.pokedaisy.app.companion.data.FieldItemSupport?>? = null
 
+    /** LEVEL UP ALL's roster from the emu thread on a free field, its plans worked out off it. */
+    private fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) {
+        val cfg = com.pokedaisy.app.companion.data.activeNativeConfig
+        val tables = cfg?.levelUpAll
+        val support = fieldItemSupport()
+        if (cfg == null || tables == null || support == null || !::engine.isInitialized || !engine.running || !engine.onField.value) return done(null)
+        val progress = telemetry.snapshot.value.progress
+        engine.requestFieldItemJob(telemetry.snapshot.value.inBattle) { calls, busy ->
+            val roster = runCatching {
+                if (com.pokedaisy.app.companion.data.levelUpFieldFree(support.fns, busy, calls)) com.pokedaisy.app.companion.data.readRoster(cfg, tables, calls) else null
+            }.getOrNull()
+            if (roster == null) runOnUiThread { done(null) } else kotlin.concurrent.thread(name = "pokedaisy-level-up") {
+                val offer = runCatching { com.pokedaisy.app.companion.data.buildLevelUpOffer(roster, cfg, tables, progress) }
+                    .onFailure { Log.e("pokedaisy", "level up offer failed", it) }.getOrNull()
+                runOnUiThread { done(offer) }
+            }
+        }
+    }
+
+    private fun levelUpApply(
+        planned: List<com.pokedaisy.app.companion.data.PlannedRaise>,
+        rules: com.pokedaisy.app.companion.data.LevelUpRules,
+        done: (com.pokedaisy.app.companion.data.LevelUpResult) -> Unit,
+    ) {
+        val cfg = com.pokedaisy.app.companion.data.activeNativeConfig
+        val flags = cfg?.pokedex?.flags
+        val support = fieldItemSupport()
+        if (cfg == null || flags == null || support == null || !::engine.isInitialized || !engine.running) return done(com.pokedaisy.app.companion.data.LevelUpResult.FAILED)
+        engine.requestFieldItemJob(telemetry.snapshot.value.inBattle) { calls, busy ->
+            val out = runCatching {
+                if (!com.pokedaisy.app.companion.data.levelUpFieldFree(support.fns, busy, calls)) com.pokedaisy.app.companion.data.LevelUpResult.NOT_NOW
+                else com.pokedaisy.app.companion.data.applyLevelUps(planned, rules, cfg, flags, calls)
+            }.getOrElse { Log.e("pokedaisy", "level up failed", it); com.pokedaisy.app.companion.data.LevelUpResult.FAILED }
+            Log.i("pokedaisy", "level up all: $out, ${planned.size} Pokémon")
+            runOnUiThread { done(out) }
+        }
+    }
+
     private fun fieldItemSupport(): com.pokedaisy.app.companion.data.FieldItemSupport? {
         val game = telemetry.snapshot.value.game
         // The config's text key and tables too: Emerald Kaizo runs as EMERALD and keeps no FLY (fieldItemsForGame);
@@ -1290,6 +1328,13 @@ class PokeDaisyActivity : Activity() {
         override val tradeEvolutions get() = Prefs(this@PokeDaisyActivity).tradeEvolutions
         override fun setTradeEvolutions(on: Boolean) { Prefs(this@PokeDaisyActivity).tradeEvolutions = on }
         override val tradeEvolutionsSupported get() = tradeEvoFns() != null
+        override val levelUpAllSupported get() = com.pokedaisy.app.companion.data.activeNativeConfig?.levelUpAll != null && fieldItemSupport() != null
+        override fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) = this@PokeDaisyActivity.levelUpOffer(done)
+        override fun levelUpApply(
+            planned: List<com.pokedaisy.app.companion.data.PlannedRaise>,
+            rules: com.pokedaisy.app.companion.data.LevelUpRules,
+            done: (com.pokedaisy.app.companion.data.LevelUpResult) -> Unit,
+        ) = this@PokeDaisyActivity.levelUpApply(planned, rules, done)
         override val reusableTms get() = Prefs(this@PokeDaisyActivity).reusableTms
         override fun setReusableTms(on: Boolean) {
             if (coopRefuses()) return
