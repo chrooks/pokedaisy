@@ -604,6 +604,7 @@ private fun previewLevelUpOffer(): com.pokedaisy.app.companion.data.LevelUpOffer
     return com.pokedaisy.app.companion.data.LevelUpOffer(
         rules, com.pokedaisy.app.companion.data.LevelUpChoice(34, planned),
         com.pokedaisy.app.companion.data.LevelUpChoice(21, planned.take(6)), "SANTANA",
+        partyLowest = 12, pcLowest = 9, planAt = { planned },
     )
 }
 
@@ -1868,16 +1869,41 @@ fun main(args: Array<String>) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("PLAYER LOOK")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         // LEVEL UP ALL's pop-ups, one step further each.
+        Shot("$g-settings-level-up-who", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
         Shot("$g-settings-level-up-target", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-pick", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PICK A LEVEL").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-picked", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY ONLY").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PICK A LEVEL").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("DONE").performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-level-up-moves", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
             waitForIdle()
             onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-level-up-confirm", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
             waitForIdle()
             onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
             waitForIdle()
@@ -1885,6 +1911,8 @@ fun main(args: Array<String>) {
         },
         Shot("$g-settings-level-up-ask", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
             waitForIdle()
             onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
             waitForIdle()

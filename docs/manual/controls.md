@@ -227,12 +227,15 @@ It works on the Game Boy Advance originals in every language and on almost every
 
 `LEVEL UP ALL` brings every Pokémon in your party and PC up to one level. It's in the companion's `GAMEPLAY` group, in the games it works in (Monomyth for now), and it opens from the field: finish any battle, menu or text box first.
 
-Pick how high to go:
+First pick whose Pokémon go up: `PARTY AND PC`, `PARTY ONLY` or `PC ONLY`. A choice with nobody to raise reads `N/A`.
 
-- `HIGHEST`: the level of your strongest Pokémon.
+Then pick how high to go:
+
+- `HIGHEST`: the level of your strongest Pokémon, party and PC alike.
 - `NEXT BOSS`: the level of the strongest Pokémon on the next team you haven't beaten. Once every boss is beaten this one reads `N/A`.
+- `PICK A LEVEL`: any level you like, up to the higher of those two. Slide the bar or press `-` and `+`, then `DONE`. It starts at the top.
 
-Then pick what happens to new moves:
+Last, pick what happens to new moves:
 
 - `SKIP THEM ALL`, the default, leaves every Pokémon's moves as they are.
 - `ASK FOR EACH` asks about each new move a full Pokémon could learn, and fills an empty move slot without asking. Pick a move to forget, `DON'T LEARN IT`, or `SKIP THE REST`.

@@ -1,5 +1,7 @@
 package com.pokedaisy.app.companion.data
 
+import com.pokedaisy.app.companion.i18n.tk
+
 /**
  * LEVEL UP ALL: every Pokémon the player owns brought up to one level, written straight into the running game's party and
  * PC records (nothing reaches the save file until the player saves in the game). The target is the highest level the
@@ -375,10 +377,48 @@ class LevelUpSession(planned: List<PlannedRaise>, private val rules: LevelUpRule
 }
 
 /** One of the targets the player can pick: the level and who it would raise. */
-data class LevelUpChoice(val level: Int, val planned: List<PlannedRaise>)
+data class LevelUpChoice(val level: Int, val planned: List<PlannedRaise>) {
+    /** Only the Pokémon [scope] takes. */
+    fun within(scope: LevelUpScope) = copy(planned = planned.filter { scope.takes(it.slot.isParty) })
+}
 
-/** What LEVEL UP ALL can do right now. [bossName] is [nextBoss]'s; a null [nextBoss] = every boss is beaten. */
-class LevelUpOffer(val rules: LevelUpRules, val highest: LevelUpChoice, val nextBoss: LevelUpChoice?, val bossName: String?)
+/** Whose Pokémon go up: the party, the PC or both. The targets' levels stay the whole roster's either way. */
+enum class LevelUpScope(val label: String) {
+    ALL(tk("PARTY AND PC")), PARTY(tk("PARTY ONLY")), PC(tk("PC ONLY"));
+
+    fun takes(isParty: Boolean) = when (this) { ALL -> true; PARTY -> isParty; PC -> !isParty }
+}
+
+/**
+ * What LEVEL UP ALL can do right now. [bossName] is [nextBoss]'s; a null [nextBoss] = every boss is beaten.
+ * [partyLowest] / [pcLowest] = the lowest level there (null = nobody there can climb); [planAt] plans every Pokémon below a
+ * level the player picks (reads the ROM's tables: off the UI thread).
+ */
+class LevelUpOffer(
+    val rules: LevelUpRules,
+    val highest: LevelUpChoice,
+    val nextBoss: LevelUpChoice?,
+    val bossName: String?,
+    val partyLowest: Int? = null,
+    val pcLowest: Int? = null,
+    val planAt: (level: Int) -> List<PlannedRaise> = { emptyList() },
+) {
+    /** The highest level the player may pick: the higher of [highest] and [nextBoss]. */
+    val cap: Int get() = maxOf(highest.level, nextBoss?.level ?: 0)
+
+    /** The lowest level [scope] holds; null = nobody in it can climb. */
+    fun lowest(scope: LevelUpScope): Int? = when (scope) {
+        LevelUpScope.ALL -> listOfNotNull(partyLowest, pcLowest).minOrNull()
+        LevelUpScope.PARTY -> partyLowest
+        LevelUpScope.PC -> pcLowest
+    }
+
+    /** The levels the player may pick for [scope]: one past its lowest (anything less raises nobody) up to [cap]; null = none. */
+    fun pickable(scope: LevelUpScope): IntRange? = lowest(scope)?.let { (it + 1)..cap }?.takeIf { it.first < it.last }
+
+    /** [level] planned for [scope]. Off the UI thread. */
+    fun choiceAt(level: Int, scope: LevelUpScope) = LevelUpChoice(level, planAt(level)).within(scope)
+}
 
 /** The next unbeaten boss and the level of the strongest Pokémon on its team, over every team it may bring; null = none left. */
 fun nextBossLevel(bosses: List<Boss>, progress: SaveProgress, party: (trainer: Int) -> List<TrainerMon>): Pair<Boss, Int>? {
@@ -399,8 +439,11 @@ fun buildLevelUpOffer(roster: List<RosterSlot>, cfg: NativeConfig, t: LevelUpTab
     val top = highestLevel(roster, rules)
     val boss = if (guide == null || progress == null) null
         else nextBossLevel(gameGuide(guide.guide)?.bosses.orEmpty(), progress) { GuideRomSource.party(guide, it).orEmpty() }
+    fun lowest(party: Boolean) = roster.filter { it.isParty == party }.mapNotNull { climber(it.record, it.isParty, rules)?.level }.minOrNull()
     return LevelUpOffer(
         rules, LevelUpChoice(top, planAll(roster, top, rules)),
         boss?.let { (_, level) -> LevelUpChoice(level, planAll(roster, level, rules)) }, boss?.first?.title,
+        partyLowest = lowest(party = true), pcLowest = lowest(party = false),
+        planAt = { planAll(roster, it, rules) },
     )
 }

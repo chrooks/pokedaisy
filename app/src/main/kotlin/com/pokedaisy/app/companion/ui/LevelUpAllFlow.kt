@@ -1,21 +1,36 @@
 package com.pokedaisy.app.companion.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.pokedaisy.app.companion.CompanionSettings
 import com.pokedaisy.app.companion.data.LevelUpChoice
 import com.pokedaisy.app.companion.data.LevelUpOffer
 import com.pokedaisy.app.companion.data.LevelUpResult
+import com.pokedaisy.app.companion.data.LevelUpScope
 import com.pokedaisy.app.companion.data.LevelUpSession
 import com.pokedaisy.app.companion.data.MoveQuestion
 import com.pokedaisy.app.companion.data.lookupMove
 import com.pokedaisy.app.companion.i18n.tk
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.i18n.trGuide
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-/** Where LEVEL UP ALL's pop-ups are: pick a target, pick what new moves do, confirm, answer the moves, see what happened. */
+/**
+ * Where LEVEL UP ALL's pop-ups are: pick whose Pokémon, pick a target (or a level of the player's own), pick what new moves
+ * do, confirm, answer the moves, see what happened.
+ */
 internal sealed class LevelUpStep {
-    class Target(val offer: LevelUpOffer) : LevelUpStep()
+    class Who(val offer: LevelUpOffer) : LevelUpStep()
+    class Target(val offer: LevelUpOffer, val scope: LevelUpScope) : LevelUpStep()
+    class PickLevel(val offer: LevelUpOffer, val scope: LevelUpScope, val range: IntRange) : LevelUpStep()
+    /** A picked level being planned off the UI thread: nothing drawn for that moment. */
+    class Planning(val offer: LevelUpOffer, val scope: LevelUpScope, val level: Int) : LevelUpStep()
     class Moves(val offer: LevelUpOffer, val choice: LevelUpChoice) : LevelUpStep()
     class Confirm(val offer: LevelUpOffer, val choice: LevelUpChoice, val ask: Boolean) : LevelUpStep()
     class Ask(val offer: LevelUpOffer, val session: LevelUpSession, val question: MoveQuestion) : LevelUpStep()
@@ -27,7 +42,7 @@ private const val SKIP_REST = -2
 
 /** The row's tap: the first pop-up, or why not now. */
 internal fun startLevelUp(s: CompanionSettings, go: (LevelUpStep) -> Unit) {
-    s.levelUpOffer { offer -> go(if (offer == null) LevelUpStep.Notice(tr("Finish what's on the screen and try again from the field.")) else LevelUpStep.Target(offer)) }
+    s.levelUpOffer { offer -> go(if (offer == null) LevelUpStep.Notice(tr("Finish what's on the screen and try again from the field.")) else LevelUpStep.Who(offer)) }
 }
 
 /** The next question of [session], or the write when none are left. */
@@ -54,21 +69,44 @@ private fun write(s: CompanionSettings, offer: LevelUpOffer, session: LevelUpSes
 internal fun LevelUpAllFlow(s: CompanionSettings, step: LevelUpStep, m: GbaTextMetrics, go: (LevelUpStep?) -> Unit) {
     val close = { go(null) }
     when (step) {
+        is LevelUpStep.Who -> OptionSelector(
+            tk("LEVEL UP ALL"), LevelUpScope.entries, LevelUpScope.ALL, { tr(it.label) }, m,
+            onPick = { if (step.offer.lowest(it) != null) go(LevelUpStep.Target(step.offer, it)) },
+            onDismiss = close,
+            badge = { if (step.offer.lowest(it) == null) tk("N/A") else null },
+        )
         is LevelUpStep.Target -> {
-            val choices = listOfNotNull(step.offer.highest, step.offer.nextBoss)
-            val highestLabel = tr("HIGHEST · LV {0}", step.offer.highest.level)
-            val bossLabel = step.offer.nextBoss?.let { tr("NEXT BOSS · LV {0}", it.level) } ?: tr("NEXT BOSS")
-            val labels = listOf(highestLabel, bossLabel)
+            val offer = step.offer
+            val highestLabel = tr("HIGHEST · LV {0}", offer.highest.level)
+            val bossLabel = offer.nextBoss?.let { tr("NEXT BOSS · LV {0}", it.level) } ?: tr("NEXT BOSS")
+            val pickLabel = tr("PICK A LEVEL")
+            val range = offer.pickable(step.scope)
             OptionSelector(
-                tk("LEVEL UP ALL"), labels, highestLabel, { it }, m,
+                tk("LEVEL UP ALL"), listOf(highestLabel, bossLabel, pickLabel), highestLabel, { it }, m,
                 onPick = { l ->
-                    if (l == highestLabel) go(afterTarget(step.offer, choices[0]))
-                    else step.offer.nextBoss?.let { go(afterTarget(step.offer, it)) }
+                    when (l) {
+                        highestLabel -> go(afterTarget(offer, offer.highest.within(step.scope)))
+                        bossLabel -> offer.nextBoss?.let { go(afterTarget(offer, it.within(step.scope))) }
+                        else -> range?.let { go(LevelUpStep.PickLevel(offer, step.scope, it)) }
+                    }
                 },
                 onDismiss = close,
-                badge = { if (it == bossLabel && step.offer.nextBoss == null) tk("N/A") else null },
-                note = step.offer.bossName?.let { tr("NEXT: {0}", trGuide(it)) } ?: tr("Every boss is beaten"),
+                badge = { if ((it == bossLabel && offer.nextBoss == null) || (it == pickLabel && range == null)) tk("N/A") else null },
+                note = offer.bossName?.let { tr("NEXT: {0}", trGuide(it)) } ?: tr("Every boss is beaten"),
             )
+        }
+        is LevelUpStep.PickLevel -> {
+            // Starts at the top: the highest it may go, which is HIGHEST's or NEXT BOSS's level.
+            var level by remember(step) { mutableIntStateOf(step.range.last) }
+            OptionSliderPopup(
+                tr("PICK A LEVEL"), tr("LV {0}", level), SettingSlider(level, step.range, 1) { level = it }, m,
+                onDismiss = close,
+                onDone = { go(LevelUpStep.Planning(step.offer, step.scope, level)) },
+            )
+        }
+        is LevelUpStep.Planning -> LaunchedEffect(step) {
+            val choice = withContext(Dispatchers.Default) { runCatching { step.offer.choiceAt(step.level, step.scope) }.getOrNull() }
+            go(if (choice == null) LevelUpStep.Notice(tr("Something went wrong. Nothing was raised.")) else afterTarget(step.offer, choice))
         }
         is LevelUpStep.Moves -> {
             val skip = tk("SKIP THEM ALL")

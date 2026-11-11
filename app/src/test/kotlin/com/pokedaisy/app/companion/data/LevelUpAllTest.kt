@@ -190,6 +190,59 @@ class LevelUpAllTest {
 
     private fun planAllAt(target: Int, ram: GameCalls, r: LevelUpRules = rules) = planAll(readRoster(NATIVE_MONOMYTH, tables, ram)!!, target, r)
 
+    private fun offerFor(ram: GameCalls, bossLevel: Int?): LevelUpOffer {
+        val roster = readRoster(NATIVE_MONOMYTH, tables, ram)!!
+        val top = highestLevel(roster, rules)
+        fun lowest(party: Boolean) = roster.filter { it.isParty == party }.mapNotNull { planRaise(it.record, it.isParty, 100, rules)?.oldLevel }.minOrNull()
+        return LevelUpOffer(
+            rules, LevelUpChoice(top, planAll(roster, top, rules)), bossLevel?.let { LevelUpChoice(it, planAll(roster, it, rules)) }, null,
+            partyLowest = lowest(party = true), pcLowest = lowest(party = false), planAt = { planAll(roster, it, rules) },
+        )
+    }
+
+    @Test fun partyOnlyAndPcOnlyRaiseJustTheirOwnPokemon() {
+        val offer = offerFor(Ram(), bossLevel = 20)
+        val party = offer.choiceAt(20, LevelUpScope.PARTY).planned
+        val pc = offer.choiceAt(20, LevelUpScope.PC).planned
+
+        assertEquals(6, party.size)
+        assertTrue(party.all { it.slot.isParty })
+        assertEquals(5, pc.size)
+        assertTrue(pc.none { it.slot.isParty })
+        assertEquals(11, offer.choiceAt(20, LevelUpScope.ALL).planned.size)
+        assertEquals(pc.map { it.slot.addr }, offer.nextBoss!!.within(LevelUpScope.PC).planned.map { it.slot.addr })
+    }
+
+    @Test fun aPickedLevelRunsFromJustAboveTheLowestToTheHigherOfHighestAndNextBoss() {
+        val ram = Ram()
+        val withBoss = offerFor(ram, bossLevel = 30)
+        val lowest = withBoss.lowest(LevelUpScope.ALL)!!
+
+        assertEquals(30, withBoss.cap)
+        assertEquals((lowest + 1)..30, withBoss.pickable(LevelUpScope.ALL))
+        // A boss below the highest Pokémon leaves the highest as the top.
+        assertEquals(12, offerFor(ram, bossLevel = 8).cap)
+        assertEquals(12, offerFor(ram, bossLevel = null).cap)
+    }
+
+    @Test fun aPickedLevelRaisesOnlyThoseBelowIt() {
+        val offer = offerFor(Ram(), bossLevel = 30)
+        val picked = offer.choiceAt(25, LevelUpScope.ALL)
+
+        assertEquals(25, picked.level)
+        assertTrue(picked.planned.all { it.plan.newLevel == 25 })
+        assertEquals(11, picked.planned.size)
+    }
+
+    @Test fun nothingToPickWhenEveryoneInTheScopeIsAtTheTopAlready() {
+        val ram = Ram()
+        assertEquals(LevelUpResult.DONE, applyLevelUps(planAllAt(12, ram), rules, NATIVE_MONOMYTH, dexFlags, ram))
+        val offer = offerFor(ram, bossLevel = null)
+
+        assertEquals(12, offer.lowest(LevelUpScope.ALL))
+        assertNull(offer.pickable(LevelUpScope.ALL))
+    }
+
     @Test fun applyingRaisesEveryoneAndTheRecordsReadBack() {
         val ram = Ram()
         val planned = planAllAt(20, ram)
