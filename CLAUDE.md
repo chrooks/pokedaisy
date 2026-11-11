@@ -901,6 +901,12 @@ button flips Kanto / Sevii maps, ME returns to the player. `MapSecData.kt`'s dun
 "not on the map" sections are 0,0,0,0 (they used to sit at a fake (4,4)); the grid's dungeon
 layer places them (`RegionMapModel.tilesOf`). ui-preview: `-Ponly=map` renders the tapped /
 PLACES / region states too.
+**DEX list TYPE / SORT / PARTY + PC (2026-11-11, the user's gym-prep request after chrooked-pokedex's species page)**: `DexQuery.kt`
+(pure: `TypeFilter` = a type + IS / HITS {0} HARD / RESISTS {0} over the running game's chart, `DexSort` by a base stat, highest first,
+dex order on ties) under the seen / caught filter; types + stats from `PokedexSource.entry` for *seen* entries only (`rememberDexStats`,
+IO, only while one is on: the list never tells an unseen type). `DexFilter.HELD` = `PokedexState.held` (party + PC species, set by
+`NativeReader`'s `heldSpecies` from `pcBoxes`, else Monomyth's storage through `boxSpecies`; null = no row). Short companion drops SEEN /
+OWNED. ui-preview `emerald-dex-list-*` (needs `-Prom`).
 **DEX entry sections (GitHub #28)**: chips over the entry's right column switch INFO / EVOLVE / AREA / MOVES
 (`DexSection`, `ui/DexDetailPages.kt`; `DexUiState.section` sticks while stepping entries), data from
 `DexDetails` (`data/DexDetails.kt`, process-wide caches per ROM, IO only). EVOLVE = the whole family both ways, each

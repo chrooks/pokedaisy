@@ -186,6 +186,15 @@ class LevelUpAllTest {
         assertEquals(12, highestLevel(roster, rules))
     }
 
+    @Test fun theDexReadsThePcsSpeciesFromARamCopy() {
+        val roster = readRoster(NATIVE_MONOMYTH, tables, Ram())!!.filter { !it.isParty }
+        val fromRoster = roster.mapNotNull { planRaise(it.record, false, 100, rules)?.oldSpecies }
+
+        val species = boxSpecies(FixtureMemoryReader.load("monomyth"), tables)
+
+        assertEquals(fromRoster, species)
+    }
+
     private val dexFlags = DexFlags(DexFlagBlock.SAVE_BLOCK_1, seen = 0x37F4, caught = 0x3827, bytes = 0x33)
 
     private fun planAllAt(target: Int, ram: GameCalls, r: LevelUpRules = rules) = planAll(readRoster(NATIVE_MONOMYTH, tables, ram)!!, target, r)

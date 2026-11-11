@@ -573,7 +573,18 @@ fun readNativeTelemetry(client: MemoryReader, cfg: NativeConfig): Telemetry {
         mapSecName = if (regionMapSectionId == 0) readHubName(client, cfg) else null,
         trainerCard = readTrainerCard(client, cfg),
         pcBoxes = if (cfg.pokemonStoragePtr != 0L) readPcBoxes(client, cfg) else null,
-    )
+    ).let { t -> t.copy(pokedex = t.pokedex?.withHeld(heldSpecies(t, client, cfg))) }
+}
+
+/**
+ * The party's and the PC's species (eggs aside), for the DEX's PARTY + PC; null when the PC isn't read: its boxes
+ * ([Telemetry.pcBoxes]), else a game LEVEL UP ALL knows the storage of ([boxSpecies]).
+ */
+private fun heldSpecies(t: Telemetry, client: MemoryReader, cfg: NativeConfig): List<Int>? {
+    val pc = t.pcBoxes?.boxes?.flatMap { b -> b.mons.filterNotNull().filter { !it.isEgg }.map { it.species } }
+        ?: cfg.levelUpAll?.let { runCatching { boxSpecies(client, it) }.getOrNull() }
+        ?: return null
+    return t.party.filter { !it.isEgg && it.species != 0 }.map { it.species } + pc
 }
 
 // struct PokemonStorage (pokefirered's include/pokemon_storage_system.h): u8 currentBox (+ 3 bytes of padding), then

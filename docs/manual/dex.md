@@ -10,10 +10,12 @@ The `DEX` tab is your Pokédex, read from your save, with entries that go furthe
 
 ## The list
 
-The left side shows your counts and filters:
+The left side shows your counts and filters. On small screens like the RG DS, the `SEEN` and `OWNED` counts are left out to make room.
 
 - `SEEN` and `OWNED`: how many you've seen and caught in the dex you're looking at.
-- A filter list with the count for each: `ALL`, `CAUGHT`, `SEEN ONLY` (seen but not caught yet) and `NOT SEEN`. Tap one to narrow the list.
+- A filter list with the count for each: `ALL`, `CAUGHT`, `PARTY + PC`, `SEEN ONLY` (seen but not caught yet) and `NOT SEEN`. Tap one to narrow the list. `PARTY + PC` lists the Pokémon you hold right now, in your party or your PC; `CAUGHT` also counts ones you traded away or evolved. It shows in the Game Boy Advance games whose PC the companion reads.
+- `ANY TYPE`: pick a type, then how a Pokémon should relate to it. `IS` means one of its types is that type. `HITS ... HARD` means one of its own types is super effective on that type: before a gym, pick the gym's type with `PARTY + PC`. `RESISTS` means that type does less than normal damage to it. Pick `ANY TYPE` in the list to turn the filter off. Pokémon you haven't seen never pass it, so it can't tell you a type before the game does.
+- `SORT`: the dex's own order, or a base stat, highest first: `HP`, `ATTACK`, `DEFENSE`, `SP. ATK`, `SP. DEF`, `SPEED` or `TOTAL`. Each row then shows that stat at its end.
 - A button that flips between the regional dex and the `NATIONAL DEX`, in games that have both. It starts on the one your save is using: regional until the game gives you the national one.
 
 The right side is the numbered list. A red ball marks a Pokémon you've caught, a grey one a Pokémon you've only seen. Ones you haven't seen are greyed out.

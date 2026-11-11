@@ -1453,7 +1453,13 @@ data class PokedexState(
     val caught: Set<Int>,
     /** SaveBlock2's nationalMagic: the National Dex has been unlocked. */
     val national: Boolean,
-)
+    /** National numbers of the Pokémon in the party or the PC right now (eggs aside); null = the PC isn't read in this game. */
+    val held: Set<Int>? = null,
+) {
+    /** [species] (party and PC species ids; null = the PC isn't read) as [held]. */
+    fun withHeld(species: List<Int>?): PokedexState =
+        copy(held = species?.mapNotNull { s -> PokedexSource.nationalOf(tables, s).takeIf { it > 0 } }?.toSet())
+}
 
 /**
  * The seen / caught flags ([PokedexTables.flags]), checked the way the game's

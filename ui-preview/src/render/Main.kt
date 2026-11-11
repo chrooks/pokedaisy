@@ -737,7 +737,36 @@ fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h:
         com.pokedaisy.app.companion.ui.DexSection.AREA to if (game == GameKind.EMERALD) 263 else 129,
         com.pokedaisy.app.companion.ui.DexSection.MOVES to if (game == GameKind.EMERALD) 252 else 1,
     )
-    return entries.map { (section, entry) ->
+    // The list's TYPE filter + SORT (water hitters by ATTACK, the party's species as PARTY + PC), and its pick-lists.
+    fun listShot(name: String, setUp: com.pokedaisy.app.companion.ui.DexUiState.() -> Unit, tap: (SkikoComposeUiTest.() -> Unit)? = null) =
+        Shot("$g-dex-list-$name", w, h, d, {
+            val held = dex.copy(held = setOf(6, 9, 25, 130, 131))
+            val content: @Composable () -> Unit = {
+                com.pokedaisy.app.companion.ui.theme.AppTheme {
+                    val ui = androidx.compose.runtime.remember {
+                        com.pokedaisy.app.companion.ui.DexUiState(androidx.compose.foundation.lazy.LazyListState()).apply(setUp)
+                    }
+                    com.pokedaisy.app.companion.ui.CompanionScreenSize { com.pokedaisy.app.companion.ui.PokedexScreen(held, ui) }
+                }
+            }
+            content
+        }) { waitUntil(5_000) { onAllNodesWithText("LOADING").fetchSemanticsNodes().isEmpty() }; tap?.invoke(this) }
+    val water = com.pokedaisy.app.companion.data.typeIdOf("Water")
+    val listShots = listOf(
+        listShot("query", {
+            filter = com.pokedaisy.app.companion.ui.DexFilter.SEEN
+            type = com.pokedaisy.app.companion.data.TypeFilter(water, com.pokedaisy.app.companion.data.TypeRelation.HITS)
+            sort = com.pokedaisy.app.companion.data.DexSort.ATTACK
+        }),
+        listShot("held", { filter = com.pokedaisy.app.companion.ui.DexFilter.HELD; sort = com.pokedaisy.app.companion.data.DexSort.TOTAL }),
+        listShot("type-pick", {}) { onNodeWithText("ANY TYPE").performSemanticsAction(SemanticsActions.OnClick) },
+        listShot("relation-pick", {}) {
+            onNodeWithText("ANY TYPE").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("WATER").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+    )
+    return listShots + entries.map { (section, entry) ->
         Shot("$g-dex-${section.name.lowercase()}", w, h, d, {
             val s = live(snapshot())
             val content: @Composable () -> Unit = {

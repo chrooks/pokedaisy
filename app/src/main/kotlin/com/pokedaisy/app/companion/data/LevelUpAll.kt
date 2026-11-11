@@ -112,12 +112,17 @@ private fun sealed(r: ByteArray, o: Opened, layout: PartyMonLayout): ByteArray {
 
 private class Climber(val o: Opened, val species: Int, val level: Int)
 
+/** [record]'s species once opened; null = an empty slot, an egg or a Bad Egg. */
+private fun hatchedSpecies(record: ByteArray, o: Opened, layout: PartyMonLayout): Int? {
+    val species = u16(o.block, o.growth + GROWTH_SPECIES)
+    val eggFlag = record[layout.flags].toInt() and layout.eggMask != 0
+    return species.takeIf { it != 0 && !eggFlag && (u32(o.block, o.misc + MISC_IV_WORD) shr IV_EGG_BIT) and 1L != 1L }
+}
+
 /** [record] read as a Pokémon that can climb; null = an empty slot, an egg, a Bad Egg or an unknown growth rate. */
 private fun climber(record: ByteArray, isParty: Boolean, rules: LevelUpRules): Climber? {
     val o = open(record, rules.layout) ?: return null
-    val species = u16(o.block, o.growth + GROWTH_SPECIES)
-    val eggFlag = record[rules.layout.flags].toInt() and rules.layout.eggMask != 0
-    if (species == 0 || eggFlag || (u32(o.block, o.misc + MISC_IV_WORD) shr IV_EGG_BIT) and 1L == 1L) return null
+    val species = hatchedSpecies(record, o, rules.layout) ?: return null
     val row = rules.expRow(species) ?: return null
     return Climber(o, species, if (isParty) record[PARTY_LEVEL].toInt() and 0xFF else levelFromExp(row, u32(o.block, o.growth + GROWTH_EXP)))
 }
@@ -276,6 +281,17 @@ fun readRoster(cfg: NativeConfig, t: LevelUpTables, g: GameCalls): List<RosterSl
         if (rec.all { it == 0.toByte() }) null else RosterSlot(first + n * BOX_SIZE.toLong(), false, rec)
     }
     return party + boxed
+}
+
+/** The species of every hatched Pokémon in the PC, read from a RAM copy ([c]); null = the storage isn't set up. */
+fun boxSpecies(c: MemoryReader, t: LevelUpTables, layout: PartyMonLayout = MONOMYTH_PARTY_MON): List<Int>? {
+    val storage = u32(c.readCoreMemory(t.storagePtr, 4), 0)
+    if (storage !in EWRAM_START until EWRAM_END) return null
+    val all = c.readCoreMemory(storage + STORAGE_RECORDS, BOX_SLOTS * BOX_SIZE)
+    return (0 until BOX_SLOTS).mapNotNull { n ->
+        val rec = all.copyOfRange(n * BOX_SIZE, (n + 1) * BOX_SIZE)
+        if (rec.all { it == 0.toByte() }) null else open(rec, layout)?.let { hatchedSpecies(rec, it, layout) }
+    }
 }
 
 /** The highest level among the player's Pokémon (eggs aside); 1 with none. */
