@@ -11,6 +11,15 @@ Two GitHub Actions workflows guard `main` and the releases:
 unit tests without the Paparazzi renders and `BestEffortTest`, its forks side by side; `make test-quick
 T='*MoneyTest'` runs one class.
 
+**A CI debug build on a device, data kept**: give the repo a fixed debug key as two secrets,
+`DEBUG_KEYSTORE_B64` (`base64 -i debug.jks`, a PKCS12 keystore with the alias `pokedaisy-debug`) and
+`DEBUG_KEYSTORE_PASSWORD` (store and key share it). CI's "Debug signing key" step hands it to Gradle
+(`POKEDAISY_DEBUG_KEYSTORE`), so every debug APK has the same signature and installs over the last one. Then
+`make thor-deploy` (`scripts/thor_deploy.sh`; `THOR_ADB=<host:port>` for Wi-Fi adb, else the USB device) waits for
+CI on the pushed HEAD, downloads its `pokedaisy-debug-apk`, waits while PokeDaisy is on screen (an install stops the
+app, and a stop mid-save corrupts the save) and runs `adb install -r`. A device whose build has another key needs one
+backup / uninstall / install / restore first; without the secrets, builds keep Gradle's throwaway key.
+
 ## Day to day: releasing a version
 
 ```bash
