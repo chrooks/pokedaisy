@@ -174,6 +174,7 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "LEVEL UP ALL" to "level up all raise train exp experience grind catch up party box boxes pc highest next boss cap evolve new moves",
     "TRADE EVOS" to "trade evolutions trading evolve evolves evolution evolutions traded link cable friend second game without trading held item",
     "REUSABLE TMS" to "reusable tm tms technical machine machines reuse infinite unlimited keep tm single use consumed used up teach moves",
+    "WILD PIN" to "wild pin pinned unpin pick choose target hunt hunting rare slot next encounter guaranteed grass cave here wild list chain",
     "SHINY ODDS" to "shiny shinies shiny odds shiny rate shiny hunting hunt shiny charm sparkle rare color colour chance",
     "TIPS" to "tips hints help popup pop up feature discovery introduce new features suggestions what can it do",
     "WILD ENCOUNTERS" to "wild encounters encounter rate random battles grass caves repel no encounters fewer battles",
