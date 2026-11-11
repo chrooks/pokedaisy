@@ -55,6 +55,19 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
+      # A fixed debug key where the repo has one (DEBUG_KEYSTORE_B64 / _PASSWORD secrets), so the
+      # artifact updates an installed debug build in place; without them, Gradle's throwaway key.
+      - name: Debug signing key
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_B64" ]; then
+            echo "$DEBUG_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/debug.jks"
+            echo "POKEDAISY_DEBUG_KEYSTORE=$RUNNER_TEMP/debug.jks" >> "$GITHUB_ENV"
+            echo "POKEDAISY_DEBUG_KEYSTORE_PASSWORD=$DEBUG_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          fi
+
       - name: Debug APK (Kotlin + the native mGBA / rcheevos build)
         run: ./gradlew :app:assembleDebug --stacktrace
 
