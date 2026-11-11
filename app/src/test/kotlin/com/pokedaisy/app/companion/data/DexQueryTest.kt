@@ -49,7 +49,9 @@ class DexQueryTest {
             3 to DexStats(fire, TYPE_NONE, listOf(39, 62, 43, 60, 50, 65)),
         )
         assertEquals(listOf(2, 3, 1), applyDexQuery(listOf(1, 2, 3), stats::get, null, DexSort.ATTACK))
-        assertEquals(listOf(2, 1, 3), applyDexQuery(listOf(1, 2, 3), stats::get, null, DexSort.TOTAL))
+        // Totals 318 / 405 / 319.
+        assertEquals(listOf(2, 3, 1), applyDexQuery(listOf(1, 2, 3), stats::get, null, DexSort.TOTAL))
+        assertEquals(listOf(3, 2, 1), applyDexQuery(listOf(1, 2, 3), stats::get, null, DexSort.SPEED))
         assertEquals(listOf(1, 2, 3), applyDexQuery(listOf(1, 2, 3), stats::get, null, DexSort.NUMBER))
     }
 
