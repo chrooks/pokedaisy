@@ -86,6 +86,8 @@ While any cheat is loaded, achievements are paused: nothing can unlock, and the 
 
 Raising `SHINY ODDS` pauses them the same way, and the tab shows `PAUSED: SHINY ODDS` until you set it back to `NORMAL`. See [SHINY ODDS](controls.md#shiny-odds).
 
+A wild Pokémon pinned from the GUIDE pauses them too, until its battle starts: the tab shows `PAUSED: WILD PIN`. See [Pin your next wild encounter](guide.md#pin-your-next-wild-encounter).
+
 ## When the site can't be reached
 
 If you're offline when a game starts, you stay signed in. The app keeps trying again by itself (more and more slowly, up to every few minutes), and the companion's tab says it can't reach RetroAchievements. Tap `TRY AGAIN` on the tab or in Settings to try right away.
