@@ -26,6 +26,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.data.showsBattle
+import com.pokedaisy.app.companion.data.wildSetOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
