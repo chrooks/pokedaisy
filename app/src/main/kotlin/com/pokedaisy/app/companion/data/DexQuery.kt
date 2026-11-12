@@ -66,3 +66,49 @@ fun applyDexQuery(nationals: List<Int>, stats: (Int) -> DexStats?, type: TypeFil
 
 /** The types the TYPE filter offers: the running game's, by id, without the unused "???". */
 fun pickableTypes(): List<Int> = activeTypeNames.filter { (_, name) -> name.isNotBlank() && name != "???" }.keys.sorted()
+
+/**
+ * [name] as NAME search compares it: capitals, accents dropped (é -> E) and spaces gone, so the letter grid's A-Z find
+ * every Latin name ("Poké" and "POKE" match). Other characters (♀, ♂, '.', '-', digits, kana) stay as they are.
+ */
+fun foldDexName(name: String): String =
+    java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .uppercase()
+        .filterNot { it.isWhitespace() }
+
+/**
+ * [nationals] through NAME search: the entries whose name contains [query] (folded, [foldDexName]). Only seen entries
+ * can match: a search never finds a Pokémon the player hasn't met. An empty [query] keeps everything.
+ */
+fun filterDexByName(nationals: List<Int>, query: String, seen: (Int) -> Boolean, nameOf: (Int) -> String?): List<Int> {
+    val q = foldDexName(query)
+    if (q.isEmpty()) return nationals
+    return nationals.filter { n -> seen(n) && nameOf(n)?.let { foldDexName(it).contains(q) } == true }
+}
+
+/** The letter grid's keys: A-Z, then any other character a seen name has (♀, ♂, '.', ...), in code order. */
+fun dexNameKeys(seenNames: Collection<String>): List<Char> {
+    val letters = ('A'..'Z').toList()
+    val extra = seenNames.flatMap { foldDexName(it).toList() }.filter { it !in 'A'..'Z' }.toSortedSet()
+    return letters + extra
+}
+
+/**
+ * The keys that would still find a seen name after [query]: every character that follows the query somewhere in one
+ * of [seenNames] (any character of them for an empty query). The letter grid dims the rest, so a typed name never
+ * runs into an empty list.
+ */
+fun dexNameNextKeys(seenNames: Collection<String>, query: String): Set<Char> {
+    val q = foldDexName(query)
+    val next = HashSet<Char>()
+    for (name in seenNames) {
+        val f = foldDexName(name)
+        var at = f.indexOf(q)
+        while (at >= 0 && at + q.length < f.length) {
+            next += f[at + q.length]
+            at = f.indexOf(q, at + 1)
+        }
+    }
+    return next
+}

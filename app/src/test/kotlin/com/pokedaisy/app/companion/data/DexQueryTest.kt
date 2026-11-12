@@ -66,4 +66,39 @@ class DexQueryTest {
         assertTrue(water in types)
         assertFalse(9 in types)
     }
+
+    // NAME search: invented names, the seen ones 1-3.
+    private val names = mapOf(1 to "EMBERPUP", 2 to "Emberhound", 3 to "Pokéfin", 4 to "EMBERLING", 5 to "MR. TIDE")
+    private val seen = setOf(1, 2, 3, 5)
+
+    @Test fun nameSearchIsContainsIgnoringCaseAccentsAndSpaces() {
+        val all = names.keys.toList()
+        assertEquals(listOf(1, 2), filterDexByName(all, "ember", seen::contains, names::get))
+        assertEquals(listOf(1), filterDexByName(all, "berp", seen::contains, names::get))
+        assertEquals(listOf(3), filterDexByName(all, "POKEF", seen::contains, names::get))
+        assertEquals(listOf(5), filterDexByName(all, "MR.T", seen::contains, names::get))
+        assertEquals(all, filterDexByName(all, "", seen::contains, names::get))
+    }
+
+    @Test fun nameSearchNeverFindsAnUnseenEntry() {
+        assertEquals(emptyList<Int>(), filterDexByName(listOf(4), "EMBERLING", seen::contains, names::get))
+        // No name read yet: no match either.
+        assertEquals(emptyList<Int>(), filterDexByName(listOf(1), "EMBER", seen::contains) { null })
+    }
+
+    @Test fun theGridOffersAToZPlusTheSeenNamesOtherCharacters() {
+        val keys = dexNameKeys(listOf("MR. TIDE", "Pokéfin"))
+        assertEquals(('A'..'Z').toList(), keys.take(26))
+        assertEquals(listOf('.'), keys.drop(26))
+    }
+
+    @Test fun onlyKeysThatStillFindASeenNameAreLive() {
+        val seenNames = seen.mapNotNull(names::get)
+        assertEquals(setOf('P', 'H'), dexNameNextKeys(seenNames, "EMBER"))
+        // Every occurrence counts: E is followed by M, R and nothing else here.
+        assertEquals(setOf('M', 'R', 'N'), dexNameNextKeys(listOf("EMBER", "PEN"), "E"))
+        // A full name has nothing after it.
+        assertEquals(emptySet<Char>(), dexNameNextKeys(seenNames, "EMBERPUP"))
+        assertTrue('Z' !in dexNameNextKeys(seenNames, ""))
+    }
 }

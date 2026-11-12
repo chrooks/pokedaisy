@@ -758,6 +758,9 @@ fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h:
             type = com.pokedaisy.app.companion.data.TypeFilter(water, com.pokedaisy.app.companion.data.TypeRelation.HITS)
             sort = com.pokedaisy.app.companion.data.DexSort.ATTACK
         }),
+        // NAME search: the letter grid open in the left column over a live list, then closed with the name kept.
+        listShot("name-grid", { name = "AR"; typing = true }),
+        listShot("name", { name = "AR"; sort = com.pokedaisy.app.companion.data.DexSort.SPEED }),
         listShot("held", { filter = com.pokedaisy.app.companion.ui.DexFilter.HELD; sort = com.pokedaisy.app.companion.data.DexSort.TOTAL }),
         listShot("type-pick", {}) { onNodeWithText("ANY TYPE").performSemanticsAction(SemanticsActions.OnClick) },
         listShot("relation-pick", {}) {

@@ -918,6 +918,12 @@ dex order on ties) under the seen / caught filter; types + stats from `PokedexSo
 IO, only while one is on: the list never tells an unseen type). `DexFilter.HELD` = `PokedexState.held` (party + PC species, set by
 `NativeReader`'s `heldSpecies` from `pcBoxes`, else Monomyth's storage through `boxSpecies`; null = no row). Short companion drops SEEN /
 OWNED. ui-preview `emerald-dex-list-*` (needs `-Prom`).
+**DEX NAME search (2026-11-11, chrookedex's search controls for the Thor, stage 1 of 3: then a token stack, then ABILITY / MOVE)**: the
+companion can't host a keyboard, so ANY NAME opens a letter grid in the list's left column (`DexNameSearch.kt`: A-Z + the seen names'
+other characters, DEL / OK under it, CLEAR by the typed name); the list filters live. Contains, case / accents / spaces folded
+(`foldDexName`), seen entries only (`filterDexByName`); a key that wouldn't find a seen name is dimmed and does nothing
+(`dexNameNextKeys`), never disabled (a disabled clickable drops the D-pad's focus). The entry page's up / down follow it
+(`DexUiState.entries(..., nameOf)`). ui-preview `emerald-dex-list-name*`.
 **DEX entry sections (GitHub #28)**: chips over the entry's right column switch INFO / EVOLVE / AREA / MOVES
 (`DexSection`, `ui/DexDetailPages.kt`; `DexUiState.section` sticks while stepping entries), data from
 `DexDetails` (`data/DexDetails.kt`, process-wide caches per ROM, IO only). EVOLVE = the whole family both ways, each
