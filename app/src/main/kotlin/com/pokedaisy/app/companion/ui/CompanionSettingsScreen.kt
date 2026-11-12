@@ -581,6 +581,20 @@ private fun homeRows(
         ) {
             if (s.wildPinSupported) { s.setWildPin(!s.wildPin); changed() }
         },
+        // The chrooked-pokedex Blocks file beside the ROM into the game (ChrookedRules.kt): greyed with the reason when it
+        // isn't there, isn't this ROM's or the running ROM won't take it. No row outside GBA games.
+        s.chrookedRulesStatus?.let { st ->
+            val ready = st is com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready
+            SettingRow(
+                tk("CHROOKED RULES"), if (ready) onOff(s.chrookedRules) else tk("N/A"), enabled = ready,
+                labelBadge = NewFeatures.badge(NewFeatures.CHROOKED_RULES), labelWeight = 0.68f,   // the long label keeps its NEW tag
+                subtitle = if (ready && s.chrookedRules && s.chrookedRulesRefused) {
+                    com.pokedaisy.app.companion.data.ChrookedRules.Status.Refused.reason
+                } else st.reason,
+            ) {
+                if (ready) { s.setChrookedRules(!s.chrookedRules); changed() }
+            }
+        },
         // A new wild foe made shiny at these odds before its battle draws it (ShinyOdds.kt; the versions it knows by hash).
         SettingRow(
             tk("SHINY ODDS"), if (s.shinyOddsSupported) shinyOddsLabel(s.shinyOdds) else tk("N/A"),

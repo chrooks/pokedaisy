@@ -56,6 +56,9 @@ object NewFeatures {
     /** SETTINGS > WILD PIN: a PIN on GUIDE > HERE's and the HUD's grass rows picks the next wild one (companion.data.WildPin). */
     const val WILD_PIN = "wild_pin"
 
+    /** SETTINGS > CHROOKED RULES: the chrooked-pokedex Blocks file beside the ROM goes into the game (companion.data.ChrookedRules). */
+    const val CHROOKED_RULES = "chrooked_rules"
+
     /** SETTINGS > SHINY ODDS: a wild foe shiny at the odds picked (companion.data.ShinyOdds). */
     const val SHINY_ODDS = "shiny_odds"
 
@@ -142,7 +145,7 @@ object NewFeatures {
         COMPANION_TAB, REUSABLE_TMS, SHINY_ODDS, UNLIT_SCREEN, LIGHT_COMPANION, X_COMPANION, PLAYER_LOOK, RIVAL_LOOK, TEXT_LOOK, DAY_NIGHT,
         FOLLOWER, COMPANION_HOTKEY, NUZLOCKE, GBA_BUTTONS, DS_RESOLUTION, TIPS, ROMS_FOLDERS, SAVE_BACKUPS, DISCORD, BOXES_TAB,
         GAME_VOLUME, ROM_PATCH, TRADE_EVOLUTIONS, LEVEL_UP_ALL, DS_LAYOUT, DS_CPU_BOOST, LINK_PLAY, BATTLE_FOCUS, THEMES, SAVE_TRADE,
-        WILD_PIN,
+        WILD_PIN, CHROOKED_RULES,
     )
 
     private const val DAYS = 7

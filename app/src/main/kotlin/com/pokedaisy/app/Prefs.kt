@@ -157,6 +157,12 @@ class Prefs(context: Context) {
         get() = p.getBoolean("reusable_tms", false)
         set(v) = p.edit().putBoolean("reusable_tms", v).apply()
 
+    /** CHROOKED RULES (OFF by default): the chrooked-pokedex Blocks file beside the ROM goes into the game
+     * ([com.pokedaisy.app.companion.data.ChrookedRules]). */
+    var chrookedRules: Boolean
+        get() = p.getBoolean("chrooked_rules", false)
+        set(v) = p.edit().putBoolean("chrooked_rules", v).apply()
+
     /** GAMEPLAY > WILD PIN (ON by default): the PIN on HERE's and the HUD's WILD rows ([com.pokedaisy.app.companion.data.WildPin]). */
     var wildPin: Boolean
         get() = p.getBoolean("wild_pin", true)

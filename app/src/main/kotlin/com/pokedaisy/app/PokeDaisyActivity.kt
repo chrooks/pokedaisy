@@ -208,6 +208,17 @@ class PokeDaisyActivity : Activity() {
 
     /** REUSABLE TMS: the ROM's spots that use a TM up ([com.pokedaisy.app.companion.data.ReusableTms]; empty = none). */
     private var tmSites: List<com.pokedaisy.app.companion.data.ReusableTms.Site> = emptyList()
+    /** CHROOKED RULES: the Blocks file beside the ROM, checked against it ([com.pokedaisy.app.companion.data.ChrookedRules.load]
+     * on the ROM scan thread); null = no row (not a GBA game, or not checked yet). */
+    private val chrookedStatus = androidx.compose.runtime.mutableStateOf<com.pokedaisy.app.companion.data.ChrookedRules.Status?>(null)
+    /** The engine couldn't put the checked rules in (another patch on those bytes): the row says so until the next load. */
+    private val chrookedRefused = androidx.compose.runtime.mutableStateOf(false)
+
+    /** The rules' blocks the engine should carry: the checked file's while CHROOKED RULES is ON, else none. */
+    private fun chrookedBlocks(): List<com.pokedaisy.app.companion.data.WildPin.RomBlock> =
+        (chrookedStatus.value as? com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready)?.blocks
+            ?.takeIf { Prefs(this).chrookedRules }.orEmpty()
+
     /** EXPAND's one-time offer is up on the companion ([CompanionSettings.expandOffer]). */
     private val expandOfferUp = androidx.compose.runtime.mutableStateOf(false)
     private var states: SaveStates? = null
@@ -1377,6 +1388,15 @@ class PokeDaisyActivity : Activity() {
             if (::engine.isInitialized) engine.setReusableTms(tmSites, on)
         }
         override val reusableTmsSupported get() = tmSites.isNotEmpty()
+        override val chrookedRulesStatus get() = chrookedStatus.value
+        override val chrookedRulesRefused get() = chrookedRefused.value
+        override val chrookedRules get() = Prefs(this@PokeDaisyActivity).chrookedRules
+        override fun setChrookedRules(on: Boolean) {
+            if (coopRefuses()) return
+            Prefs(this@PokeDaisyActivity).chrookedRules = on
+            chrookedRefused.value = false
+            if (::engine.isInitialized) engine.setChrookedRules(chrookedBlocks())
+        }
         override val dsResolution get() = if (romIsNds) Prefs(this@PokeDaisyActivity).dsResolution else null
         override val dsGpuAvailable get() = GlCaps.gles32(this@PokeDaisyActivity) && MgbaCore.pkNdsGpuSupported() != 0
         override fun setDsResolution(scale: Int) {
@@ -2078,6 +2098,9 @@ class PokeDaisyActivity : Activity() {
         wildFlag = 0L
         tmSites = emptyList()
         if (::engine.isInitialized) engine.setReusableTms(tmSites, false)
+        chrookedStatus.value = null
+        chrookedRefused.value = false
+        if (::engine.isInitialized) engine.setChrookedRules(emptyList())
         shinyTarget = null
         if (::engine.isInitialized) engine.setShinyTarget(null)
         syncShinyAchievements()
@@ -2089,12 +2112,25 @@ class PokeDaisyActivity : Activity() {
             // REUSABLE TMS: the spots that use a TM up, by their code (none = the row shows N/A).
             val tms = com.pokedaisy.app.companion.data.ReusableTms.find(r)
             Log.i("pokedaisy", "reusable TMs: ${tms.size} site(s)")
+            // CHROOKED RULES: the Blocks file in the ROM file's own folder (an archive's too), refused whole unless this ROM's.
+            val rules = runCatching {
+                com.pokedaisy.app.companion.data.ChrookedRules.load(romFile.absoluteFile.parentFile, r.readBytes())
+            }.getOrElse {
+                Log.e("pokedaisy", "chrooked rules: can't read", it)
+                com.pokedaisy.app.companion.data.ChrookedRules.Status.Unreadable
+            }
+            Log.i("pokedaisy", "chrooked rules: " + when (rules) {
+                is com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready -> "${rules.blocks.size} block(s) checked"
+                else -> rules.reason
+            })
             runOnUiThread {
                 if (romData != r) return@runOnUiThread
                 wildFlag = flag
                 if (::engine.isInitialized) engine.wildFlag = flag
                 tmSites = tms
                 if (::engine.isInitialized) engine.setReusableTms(tms, Prefs(this).reusableTms)
+                chrookedStatus.value = rules
+                if (::engine.isInitialized) engine.setChrookedRules(chrookedBlocks())
             }
         }, "wild-encounters").start()
         Prefs(this).let { p ->
@@ -2160,6 +2196,8 @@ class PokeDaisyActivity : Activity() {
             onWideOff = { runOnUiThread { showHud(com.pokedaisy.app.companion.i18n.tr("EXPAND hit a problem and is off for this game")) } }
             // WILD PIN: out by itself (its wild battle, a ROM that didn't match, a new core): the PINs follow.
             onWildPinEnded = { p -> runOnUiThread { if (com.pokedaisy.app.companion.WildPins.pinned === p) com.pokedaisy.app.companion.WildPins.setPinned(null) } }
+            // CHROOKED RULES: checked against the file, but another patch sat on their bytes in the running ROM.
+            onChrookedRulesApplied = { ok -> runOnUiThread { chrookedRefused.value = !ok } }
             gen1Music = this@PokeDaisyActivity.gen1Music
             onCoreReady = { w, h ->
                 // A DS game's bottom screen goes to the bottom display (NdsBottomFrame).
@@ -2427,6 +2465,7 @@ class PokeDaisyActivity : Activity() {
         e.ndsScale = p.dsResolution
         e.ndsCpuBoost = p.dsCpuBoost
         e.setReusableTms(tmSites, p.reusableTms)
+        e.setChrookedRules(chrookedBlocks())
         e.setShinyTarget(shinyTarget)
         e.shinyOdds = shinyOddsPref()
     }

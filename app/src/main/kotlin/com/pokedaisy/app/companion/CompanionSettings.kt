@@ -88,6 +88,14 @@ interface CompanionSettings {
     val dsLayout: DsLayout? get() = null
     fun setDsLayout(layout: DsLayout) {}
 
+    /** CHROOKED RULES ([com.pokedaisy.app.Prefs.chrookedRules]): [chrookedRulesStatus] = the Blocks file beside the ROM as
+     * checked ([com.pokedaisy.app.companion.data.ChrookedRules]; null = no row), [chrookedRulesRefused] = checked but the
+     * running ROM wouldn't take them. */
+    val chrookedRulesStatus: com.pokedaisy.app.companion.data.ChrookedRules.Status? get() = null
+    val chrookedRulesRefused: Boolean get() = false
+    val chrookedRules: Boolean get() = false
+    fun setChrookedRules(on: Boolean) {}
+
     /** WILD PIN ([WildPins]): the PIN on GUIDE > HERE's and the HUD's grass rows; [wildPinSupported] = a game of its first
      * slice ([com.pokedaisy.app.companion.data.WildPin.offered]). OFF hides every PIN. */
     val wildPinSupported: Boolean get() = false

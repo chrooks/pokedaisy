@@ -191,6 +191,19 @@ class EmulatorEngine(
         pinDirty = true
     }
 
+    /** CHROOKED RULES ([com.pokedaisy.app.companion.data.ChrookedRules]): the Blocks file's blocks, already checked against the
+     * ROM file, into the ROM with PLAYER LOOK's and WILD PIN's in one call on the next frame boundary. Empty = none (OFF). */
+    @Volatile private var rulesBlocks: List<com.pokedaisy.app.companion.data.WildPin.RomBlock> = emptyList()
+    @Volatile private var rulesDirty = false
+    /** Fired (emu thread) after each apply with rules to put in: whether they went in (false = another patch was on them). */
+    var onChrookedRulesApplied: ((Boolean) -> Unit)? = null
+
+    fun setChrookedRules(blocks: List<com.pokedaisy.app.companion.data.WildPin.RomBlock>) {
+        if (blocks.isEmpty() && rulesBlocks.isEmpty()) return
+        rulesBlocks = blocks
+        rulesDirty = true
+    }
+
     /** A Game Boy game's PC / FLY / WILD ENCOUNTERS ([com.pokedaisy.app.companion.data.GbField], its code checked), or
      * null. WILD ENCOUNTERS OFF holds the game's own encounter state every frame ([gbWildHeld]). */
     @Volatile var gbField: com.pokedaisy.app.companion.data.GbField? = null
@@ -1794,12 +1807,14 @@ class EmulatorEngine(
         runCatching { onWildPinEnded?.invoke(pin) }.onFailure { Log.e("pokedaisy", "wild pin end hook failed", it) }
     }
 
-    /** PLAYER LOOK and WILD PIN onto the ROM (emu thread), in one [MgbaCore.pkRomBlocks] call since each call replaces every
-     * block: the last ones out, these in (all or none). A pin whose bytes don't match goes, and the look alone goes in.
+    /** CHROOKED RULES, PLAYER LOOK and WILD PIN onto the ROM (emu thread), in one [MgbaCore.pkRomBlocks] call since each call
+     * replaces every block: the last ones out, these in (all or none). What doesn't fit goes in
+     * [com.pokedaisy.app.companion.data.ChrookedRules.attempts]' order: the pin first, then the look, never the rules quietly.
      * [lookChanged]: the look itself changed, so its palettes follow (not when only the pin did - never mid-battle). */
     private fun applyBlocks(lookChanged: Boolean = lookDirty) {
         lookDirty = false
         pinDirty = false
+        rulesDirty = false
         MgbaCore.pkRomUnblock()
         val patch = lookPatch
         // The player's sprite still holds the last look's record (a Pokémon's 32x32 shape, a frame table in the tail):
@@ -1812,12 +1827,18 @@ class EmulatorEngine(
             return
         }
         val look = patch?.blocks.orEmpty().map { com.pokedaisy.app.companion.data.WildPin.RomBlock(0x08000000 + it.off, it.crc, it.data) }
+        val rules = rulesBlocks
+        val pinBlocks = com.pokedaisy.app.companion.data.WildPin.withPin(emptyList(), pin)
         var lookIn = look.isEmpty()
         var pinIn = false
-        val all = com.pokedaisy.app.companion.data.WildPin.withPin(look, pin)
-        if (all.isNotEmpty()) {
-            if (putBlocks(all) >= 0) { lookIn = true; pinIn = pin != null }
-            else if (pin != null && look.isNotEmpty()) lookIn = putBlocks(look) >= 0
+        var rulesIn = false
+        for (m in com.pokedaisy.app.companion.data.ChrookedRules.attempts(rules.isNotEmpty(), look.isNotEmpty(), pin != null)) {
+            val blocks = (if (m.rules) rules else emptyList()) + (if (m.look) look else emptyList()) + (if (m.pin) pinBlocks else emptyList())
+            if (putBlocks(blocks) >= 0) { rulesIn = m.rules; lookIn = m.look || look.isEmpty(); pinIn = m.pin; break }
+        }
+        if (rules.isNotEmpty()) {
+            Log.i("pokedaisy", "chrooked rules: ${if (rulesIn) "${rules.size} block(s) in" else "REFUSED: another patch is on those bytes, left as it is"}")
+            runCatching { onChrookedRulesApplied?.invoke(rulesIn) }.onFailure { Log.e("pokedaisy", "chrooked rules hook failed", it) }
         }
         if (look.isNotEmpty()) Log.i("pokedaisy", "player look: ${if (lookIn) "${look.size} block(s) in" else "the ROM didn't match, left as it is"}")
         if (pin != null) {
@@ -1858,7 +1879,7 @@ class EmulatorEngine(
         wildGate = com.pokedaisy.app.companion.data.activeNativeConfig?.wildGate ?: 0L
         val wantGate = gba && wildGate != 0L && wildEncounters == 0
         if ((tmPatchDirty || wantGate != wildGatePatched) && !CoopGuards.battleActive()) { applyTmPatch(); coopLock?.requestReinstall() }
-        if ((lookDirty || pinDirty) && !CoopGuards.battleActive()) { applyBlocks(); coopLock?.requestReinstall() }
+        if ((lookDirty || pinDirty || rulesDirty) && !CoopGuards.battleActive()) { applyBlocks(); coopLock?.requestReinstall() }
         // The jobs queued by now (one a job queues runs on a later frame); a delayed one waits its frames.
         // Not while co-op holds the game: they call game code (PC, USE, FLY) with no frames advancing; they stay queued.
         if (runFieldJobs) repeat(fieldItemJobs.size) {

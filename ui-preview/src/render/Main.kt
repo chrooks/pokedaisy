@@ -215,6 +215,18 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override val reusableTms get() = reusableTmsOn
     override fun setReusableTms(on: Boolean) { reusableTmsOn = on }
     override val reusableTmsSupported get() = true
+    // CHROOKED RULES: -Pchrooked=missing / wrong / mismatch / unreadable / refused shows that greyed row; default a ready file.
+    private var chrookedOn = false
+    override val chrookedRulesStatus get() = when (System.getProperty("chrooked").orEmpty()) {
+        "missing" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Missing
+        "wrong" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.WrongRom
+        "mismatch" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Mismatch
+        "unreadable" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Unreadable
+        else -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready(emptyList())
+    }
+    override val chrookedRulesRefused get() = System.getProperty("chrooked") == "refused"
+    override val chrookedRules get() = chrookedOn || System.getProperty("chrooked") == "refused"
+    override fun setChrookedRules(on: Boolean) { chrookedOn = on }
     override val levelUpAllSupported get() = true
     override fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) = done(previewLevelUpOffer())
     private var shinyOddsValue = com.pokedaisy.app.companion.data.ShinyOdds.NORMAL
@@ -1827,6 +1839,11 @@ fun main(args: Array<String>) {
             onNodeWithText("GAME VOLUME").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-gameplay", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("TRADE EVOS").performScrollTo() },
+        // CHROOKED RULES flipped ON (a ready file; -Pchrooked=missing & co. for the greyed rows).
+        Shot("$g-settings-chrooked", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("CHROOKED RULES").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-chrooked-row", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("SHINY ODDS").performScrollTo() },   // the row under it: a greyed row has no node to scroll to
         Shot("$g-settings-touch", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("TOUCH CONTROLS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },

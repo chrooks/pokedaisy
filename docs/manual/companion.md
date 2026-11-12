@@ -75,7 +75,7 @@ The options come in groups, the ones you change while playing first:
 
 - **MAKEOVER**: `PLAYER LOOK`, `RIVAL LOOK`, `TEXT LOOK`, `FOLLOWER` and `DAY AND NIGHT`, fresh looks for your game. It sits at the top in a blue frame of its own, and only shows in a game it works in. See [MAKEOVER](#makeover) below.
 - **FF / SPEED**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND` and `SPEED OPTIONS` (a page with `SCENE SPEEDS`, `FF MODE` and `FF MUSIC`). See [Fast-forward](fast-forward.md).
-- **GAMEPLAY**: `WILD ENCOUNTERS`, `REUSABLE TMS`, `TRADE EVOS`, `LEVEL UP ALL`, `WILD PIN`, `SHINY ODDS`, `NUZLOCKE`, `AUTO-RUN`, `RUN INDOORS` and `CHEATS`. See [Controls](controls.md), [Party](party.md#trade-evolutions), [Bag](bag.md), [Guide](guide.md#pin-your-next-wild-encounter), [Nuzlocke](nuzlocke.md) and [Cheats](cheats.md).
+- **GAMEPLAY**: `WILD ENCOUNTERS`, `REUSABLE TMS`, `TRADE EVOS`, `LEVEL UP ALL`, `WILD PIN`, `CHROOKED RULES`, `SHINY ODDS`, `NUZLOCKE`, `AUTO-RUN`, `RUN INDOORS` and `CHEATS`. See [Controls](controls.md), [Party](party.md#trade-evolutions), [Bag](bag.md), [Guide](guide.md#pin-your-next-wild-encounter), [CHROOKED RULES](#chrooked-rules), [Nuzlocke](nuzlocke.md) and [Cheats](cheats.md).
 - **SCREEN**: `ASPECT`, `HUD`, `DISPLAY OPTIONS` (a page with `STATUS BAR`, `SHADERS`, `OVERLAY` and `LIGHT COMPANION`), `THEME`, `DARK MODE`, `FPS / CPU` and, depending on your device, `BATTLE BUTTONS`, `COMPANION VIEW`, `COMPANION BUTTON`, `SWAP SCREENS` or `SINGLE SCREEN`. See [Screen and display](screen.md).
 - **COMPANION**: `BATTLE HINTS`, `ONE-TAP MOVES`, `FOE IVS`, `BATTLE FOCUS`, `TAB BAR`, `CLICK SOUND` and `TWEAKS`.
 - **CONTROLS**: `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` and `TOUCH CONTROLS`. See [Controls](controls.md).
@@ -95,6 +95,27 @@ Every option is explained in the [Settings reference](settings-reference.md). Th
 | `JUMP TO BATTLE` | A battle opens the `BATTLE` tab, then goes back to where you were. |
 
 ![The TWEAKS page, with its four switches and a line under each](shots/companion-settings-tweaks.png "SETTINGS > TWEAKS")
+
+### CHROOKED RULES
+
+`CHROOKED RULES` plays your game with the changes you made in your own Pokédex tool: new base stats and types for the Pokémon you picked. The tool writes them into a rules file, `chrooked.blocks.json`. Put that file in the same folder as the ROM, start the game, and turn `CHROOKED RULES` on in the companion's `SETTINGS`, `GAMEPLAY` group. It's `OFF` until you turn it on.
+
+Your ROM file never changes: the rules go into the game while it runs, and turning the switch off puts the game's own numbers back at once.
+
+The rules file is made for one exact ROM. If anything about it doesn't fit, the row is greyed out and the line under it says why:
+
+| The line says | What to do |
+| --- | --- |
+| No rules file next to this ROM | Put `chrooked.blocks.json` in the ROM's folder, then start the game again. |
+| The rules file is for another ROM | Make the file again from the ROM you play: another version or a patched copy won't do. |
+| The rules file doesn't match this ROM | Same as above: the ROM's bytes aren't the ones the file was made from. |
+| The rules file can't be read | Make the file again; this one is damaged or from a newer tool. |
+| The rules couldn't go into the game | A cheat sits on the same bytes. Turn `CHEATS` off and start the game again. |
+
+The file is never used in part: either every change goes in, or none does.
+
+> [!NOTE]
+> Stats are kept inside each Pokémon, so a Pokémon you already have keeps its old numbers until it gains a level, or until you put it in the PC and take it out again. Types change at once.
 
 ### MAKEOVER
 

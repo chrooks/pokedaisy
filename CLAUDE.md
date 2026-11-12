@@ -833,6 +833,14 @@ UNPIN; never gEnemyParty, never the file or the save. RetroAchievements idle whi
 PAUSED: WILD PIN). Greyed with the NUZLOCKE tracker on (OFF IN A NUZLOCKE RUN) or in a battle. Games: retail English FireRed rev 1,
 LeafGreen rev 0 / 1, Emerald (randomized ones too) and Monomyth v1.0 / v1.1 (vanilla's wild headers; `WildPin.offered`, by GUIDE tables). Headless: `Pin.toText()` is mgba_dump's
 `romblocks` line. ui-preview `*-guide-pin*` (`-Prom`), `hud-wild-*` (`WildPins.preview`). Fishing / surf / other games: later.
+**CHROOKED RULES** (2026-11-12, the fork's; companion GAMEPLAY, `Prefs.chrookedRules` OFF, NEW tag; `ChrookedRules.kt`): the
+chrooked-pokedex Blocks file (`chrooked.blocks.json`, the dex's ADR 0003) in the ROM file's own folder, checked on the ROM scan
+thread against the ROM file: refused whole on a `rom_sha1` mismatch or any block's `original_crc32` (no partial write), then its
+blocks join PLAYER LOOK's and WILD PIN's in `applyBlocks`' one `pkRomBlocks` call (`ChrookedRules.attempts`: the pin drops first,
+then the look, never the rules quietly). The row is greyed with the reason (`Status.reason`), N/A outside GBA games. Headless:
+`ChrookedRulesTest` with `CHROOKED_TARGET=<folder with the ROM + file>` writes `app/build/chrooked/blocks.txt`, mgba_dump's
+`romblocks` input. Party stats are stored per Pokémon: old ones change on a level-up or a PC round trip; types at once. The
+companion's own reads go through the ROM overlay, so its DEX shows the game's original numbers.
 **LINK PLAY** (2026-11-01, a game's library menu; `LinkActivity`, `LinkCore`, native `pk_link.c` / `pk_link_jni.c`): two to
 four GBA games on mGBA's own lockstep link cable, apart from the player's core (`g`): only the games, no companion / EXPAND /
 HUD / hotkeys / FF / states. mGBA defines only the link's hooks (struct mLockstep); `pk_link.c` fills them with Qt's
