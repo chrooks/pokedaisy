@@ -137,6 +137,8 @@ object RetroAchievements : CompanionAchievements {
 
     /** SHINY ODDS is raised on a game it works in (ShinyOdds.kt): paused the same way, since sets reward catching a shiny. */
     @Volatile private var shinyOddsActive = false
+    /** WILD PIN is on (WildPin.kt): the next wild Pokémon is the player's pick, so achievements idle the same way. */
+    @Volatile private var wildPinActive = false
     /** A co-op battle is running on this device (CoopBattles): the link battle is not the player's own game,
      * so achievements idle as they do with cheats (no popup: the battle is short). Any thread. */
     @Volatile var coopBattle = false
@@ -413,7 +415,7 @@ object RetroAchievements : CompanionAchievements {
             resumeProgress?.let { RaNative.raDeserializeProgress(it) }
             resumeProgress = null
         }
-        if (cheatsActive || shinyOddsActive || coopBattle) RaNative.raIdle() else RaNative.raDoFrame()
+        if (achievementsIdle(cheatsActive, shinyOddsActive, coopBattle, wildPinActive)) RaNative.raIdle() else RaNative.raDoFrame()
         // Debug builds: what rc_client sees, every ~10 s of emulated time.
         if (BuildConfig.DEBUG && ++debugFrames >= 600) {
             debugFrames = 0
@@ -443,6 +445,19 @@ object RetroAchievements : CompanionAchievements {
         if (!ready || !coreAttached) return
         if ((_state.value.game?.total ?: 0) > 0) _popups.tryEmit(shinyOddsPopup(active))
     }
+
+    /** WILD PIN went on or off (emu thread, EmulatorEngine): pauses / resumes, and says so when the game has a set. */
+    fun setWildPinActive(active: Boolean) {
+        if (active == wildPinActive) return
+        wildPinActive = active
+        _state.update { it.copy(wildPinPaused = active) }
+        if (!ready || !coreAttached) return
+        if ((_state.value.game?.total ?: 0) > 0) _popups.tryEmit(wildPinPopup(active))
+    }
+
+    private fun wildPinPopup(active: Boolean) =
+        if (active) AchievementPopup(AchievementPopup.Kind.NOTICE, tr("WILD PIN ON"), tr("Achievements are paused while a WILD PIN is on."))
+        else AchievementPopup(AchievementPopup.Kind.NOTICE, tr("WILD PIN OFF"), tr("Achievements are back on."))
 
     private fun shinyOddsPopup(active: Boolean) =
         if (active) AchievementPopup(AchievementPopup.Kind.NOTICE, tr("SHINY ODDS RAISED"), tr("Achievements are paused while SHINY ODDS is raised."))
@@ -600,6 +615,7 @@ object RetroAchievements : CompanionAchievements {
                     // The game started with cheats on: say why nothing will unlock.
                     if (cheatsActive) _popups.tryEmit(cheatsPopup(true))
                     if (shinyOddsActive) _popups.tryEmit(shinyOddsPopup(true))
+                    if (wildPinActive) _popups.tryEmit(wildPinPopup(true))
                 }
             }
             // An unknown hash: rc_client still keeps a placeholder game (id 0).
@@ -706,3 +722,8 @@ internal fun parseLeaderboardEntries(bytes: ByteArray, me: String?): List<Leader
             isMe = me != null && f[1].equals(me, ignoreCase = true),
         )
     }
+
+/** Whether achievements idle this frame (rc_client_idle: nothing checked or unlocked): any cheat in, SHINY ODDS raised, a
+ * co-op battle, or a WILD PIN on. */
+internal fun achievementsIdle(cheats: Boolean, shinyOdds: Boolean, coopBattle: Boolean, wildPin: Boolean): Boolean =
+    cheats || shinyOdds || coopBattle || wildPin

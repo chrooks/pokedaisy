@@ -327,6 +327,23 @@ object GuideRomSource {
             .getOrNull()?.also { encounters[key or (set shl 16)] = it }
     }
 
+    /** WILD PIN ([WildPin]): map [group].[num]'s land slot array (grass and caves) as the file has it - where it is and
+     * its 12 slots' 48 bytes - from the header [encounters] reads; null when the map has none. */
+    fun landSlots(t: GuideTables, group: Int, num: Int, set: Int = 0): WildPin.LandSlots? {
+        sync(t)
+        return runCatching {
+            val hdr = headerIndex(t)[group shl 8 or num]?.let { alternateHeader(t, it, set) } ?: return@runCatching null
+            val h = rd(hdr, wildHeaderStride(t))
+            val sets = listOf(t.wildSet) + (0 until t.wildSets).filter { it != t.wildSet }
+            val info = t.wildLayout?.let { l -> u32le(h, 4 + 4 * l.land) }
+                ?: sets.map { u32le(h, 4 + it * wildSetStride(t)) }.firstOrNull { it != 0L } ?: 0L
+            if (!Gfx.inRom(info)) return@runCatching null
+            val mons = u32le(rd(info + 4, 4), 0)
+            if (!Gfx.inRom(mons)) return@runCatching null
+            WildPin.LandSlots(mons, rd(mons, WildPin.BLOCK_BYTES))
+        }.onFailure { android.util.Log.w("pokedaisy", "land slots $group.$num failed", it) }.getOrNull()
+    }
+
     /** The header [set] places after the map's first ([first]), as the game counts them - only while it's still
      * this map's (a var out of range keeps the first rather than read another map's). */
     private fun alternateHeader(t: GuideTables, first: Long, set: Int): Long {
@@ -1056,6 +1073,15 @@ val GUIDE_TABLES_MONOMYTH = GuideTables(
     guide = GuideId.MONOMYTH,
     trainerMonStrides = listOf(12, 20, 12, 24),
     trainerMonHeader = 4,
+)
+
+/** Monomyth v1.1: gTrainers and the learnsets +0x488 (trainer 1 is still Tim), gWildMonHeaders +0x42C, gMapGroups +0x4D0
+ * (map 2.5's header names CATSEAR CITY, 0.12's ROUTE 1); the save's flags and vars where v1.0 keeps them. */
+val GUIDE_TABLES_MONOMYTH_V1_1 = GUIDE_TABLES_MONOMYTH.copy(
+    trainers = 0x084B710CL,
+    learnsets = 0x08506AD4L,
+    wildHeaders = 0x089C3284L,
+    mapGroups = 0x0886F3A8L,
 )
 
 /**

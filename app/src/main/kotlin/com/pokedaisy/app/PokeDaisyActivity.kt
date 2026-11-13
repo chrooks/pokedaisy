@@ -26,6 +26,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.data.showsBattle
+import com.pokedaisy.app.companion.data.wildSetOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -166,6 +167,39 @@ class PokeDaisyActivity : Activity() {
         .takeIf { it in com.pokedaisy.app.companion.data.ShinyOdds.choices(BuildConfig.DEBUG) }
         ?: com.pokedaisy.app.companion.data.ShinyOdds.NORMAL
 
+    /** WILD PIN: [species] on the map the player is on - its land slots read off the UI thread, the pin handed to the
+     * engine (which puts it into the ROM at the next frame boundary). Only on a free field: never in a battle, never with
+     * the NUZLOCKE tracker on (the PIN is greyed then). */
+    private fun pinWild(species: Int) {
+        val snap = telemetry.snapshot.value
+        val t = snap.guideTables ?: return
+        if (!com.pokedaisy.app.companion.data.WildPin.offered(t) || !::engine.isInitialized) return
+        if (com.pokedaisy.app.companion.data.WildPin.blocked(com.pokedaisy.app.companion.Nuzlocke.on, snap.inBattle) != null) return
+        val group = snap.mapGroup
+        val num = snap.mapNum
+        val set = t.wildSetOf(group, num, snap.progress)
+        lookGender.launch {
+            val pin = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.pokedaisy.app.companion.data.GuideRomSource.landSlots(t, group, num, set)
+                    ?.let { com.pokedaisy.app.companion.data.WildPin.pin(species, group, num, set, it) }
+            }
+            if (pin == null) {
+                Log.w("pokedaisy", "wild pin: species $species isn't in $group.$num's land slots")
+                return@launch
+            }
+            // The player moved on while the slots were read: no pin for a map they've left.
+            val now = telemetry.snapshot.value
+            if (!pin.onMap(now.mapGroup, now.mapNum) || now.inBattle) return@launch
+            com.pokedaisy.app.companion.WildPins.setPinned(pin)
+            engine.setWildPin(pin)
+        }
+    }
+
+    private fun unpinWild() {
+        com.pokedaisy.app.companion.WildPins.setPinned(null)
+        if (::engine.isInitialized) engine.setWildPin(null)
+    }
+
     /** RetroAchievements pause while SHINY ODDS is raised on a game it works in ("catch a shiny" sets). */
     private fun syncShinyAchievements() {
         val raised = shinyTarget != null && shinyOddsPref() < com.pokedaisy.app.companion.data.ShinyOdds.NORMAL
@@ -174,6 +208,17 @@ class PokeDaisyActivity : Activity() {
 
     /** REUSABLE TMS: the ROM's spots that use a TM up ([com.pokedaisy.app.companion.data.ReusableTms]; empty = none). */
     private var tmSites: List<com.pokedaisy.app.companion.data.ReusableTms.Site> = emptyList()
+    /** CHROOKED RULES: the Blocks file beside the ROM, checked against it ([com.pokedaisy.app.companion.data.ChrookedRules.load]
+     * on the ROM scan thread); null = no row (not a GBA game, or not checked yet). */
+    private val chrookedStatus = androidx.compose.runtime.mutableStateOf<com.pokedaisy.app.companion.data.ChrookedRules.Status?>(null)
+    /** The engine couldn't put the checked rules in (another patch on those bytes): the row says so until the next load. */
+    private val chrookedRefused = androidx.compose.runtime.mutableStateOf(false)
+
+    /** The rules' blocks the engine should carry: the checked file's while CHROOKED RULES is ON, else none. */
+    private fun chrookedBlocks(): List<com.pokedaisy.app.companion.data.WildPin.RomBlock> =
+        (chrookedStatus.value as? com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready)?.blocks
+            ?.takeIf { Prefs(this).chrookedRules }.orEmpty()
+
     /** EXPAND's one-time offer is up on the companion ([CompanionSettings.expandOffer]). */
     private val expandOfferUp = androidx.compose.runtime.mutableStateOf(false)
     private var states: SaveStates? = null
@@ -407,6 +452,44 @@ class PokeDaisyActivity : Activity() {
      * built once per ROM - the bag's buttons and marks read it while drawing. */
     @Volatile private var fieldSupport: Pair<String, com.pokedaisy.app.companion.data.FieldItemSupport?>? = null
 
+    /** LEVEL UP ALL's roster from the emu thread on a free field, its plans worked out off it. */
+    private fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) {
+        val cfg = com.pokedaisy.app.companion.data.activeNativeConfig
+        val tables = cfg?.levelUpAll
+        val support = fieldItemSupport()
+        if (cfg == null || tables == null || support == null || !::engine.isInitialized || !engine.running || !engine.onField.value) return done(null)
+        val progress = telemetry.snapshot.value.progress
+        engine.requestFieldItemJob(telemetry.snapshot.value.inBattle) { calls, busy ->
+            val roster = runCatching {
+                if (com.pokedaisy.app.companion.data.levelUpFieldFree(support.fns, busy, calls)) com.pokedaisy.app.companion.data.readRoster(cfg, tables, calls) else null
+            }.getOrNull()
+            if (roster == null) runOnUiThread { done(null) } else kotlin.concurrent.thread(name = "pokedaisy-level-up") {
+                val offer = runCatching { com.pokedaisy.app.companion.data.buildLevelUpOffer(roster, cfg, tables, progress) }
+                    .onFailure { Log.e("pokedaisy", "level up offer failed", it) }.getOrNull()
+                runOnUiThread { done(offer) }
+            }
+        }
+    }
+
+    private fun levelUpApply(
+        planned: List<com.pokedaisy.app.companion.data.PlannedRaise>,
+        rules: com.pokedaisy.app.companion.data.LevelUpRules,
+        done: (com.pokedaisy.app.companion.data.LevelUpResult) -> Unit,
+    ) {
+        val cfg = com.pokedaisy.app.companion.data.activeNativeConfig
+        val flags = cfg?.pokedex?.flags
+        val support = fieldItemSupport()
+        if (cfg == null || flags == null || support == null || !::engine.isInitialized || !engine.running) return done(com.pokedaisy.app.companion.data.LevelUpResult.FAILED)
+        engine.requestFieldItemJob(telemetry.snapshot.value.inBattle) { calls, busy ->
+            val out = runCatching {
+                if (!com.pokedaisy.app.companion.data.levelUpFieldFree(support.fns, busy, calls)) com.pokedaisy.app.companion.data.LevelUpResult.NOT_NOW
+                else com.pokedaisy.app.companion.data.applyLevelUps(planned, rules, cfg, flags, calls)
+            }.getOrElse { Log.e("pokedaisy", "level up failed", it); com.pokedaisy.app.companion.data.LevelUpResult.FAILED }
+            Log.i("pokedaisy", "level up all: $out, ${planned.size} Pokémon")
+            runOnUiThread { done(out) }
+        }
+    }
+
     private fun fieldItemSupport(): com.pokedaisy.app.companion.data.FieldItemSupport? {
         val game = telemetry.snapshot.value.game
         // The config's text key and tables too: Emerald Kaizo runs as EMERALD and keeps no FLY (fieldItemsForGame);
@@ -447,6 +530,17 @@ class PokeDaisyActivity : Activity() {
         val v = evo.takeIf { ok }
         tradeEvoCache = key to v
         return v
+    }
+
+    /** QUICK HATCH's daycare step counter offset in SaveBlock1 ([com.pokedaisy.app.companion.data.quickHatchCounterOff]), only
+     * where the game's party calls are there too; null in every other game. */
+    private fun quickHatchOff(): Int? {
+        if (romIsGameBoy || romIsNds) return null
+        val hack = com.pokedaisy.app.companion.data.runningFireRedHack != null || com.pokedaisy.app.companion.data.runningEmeraldHack != null ||
+            com.pokedaisy.app.companion.data.emeraldLegacy
+        val off = com.pokedaisy.app.companion.data.quickHatchCounterOff(telemetry.snapshot.value.game, romCode, hack) ?: return null
+        if (com.pokedaisy.app.companion.data.activeNativeConfig == null || fieldItemSupport()?.fns?.party == null) return null
+        return off
     }
 
     /** A Game Boy game's PC / FLY / WILD ENCOUNTERS ([com.pokedaisy.app.companion.data.GbField]): English Yellow and
@@ -648,6 +742,22 @@ class PokeDaisyActivity : Activity() {
                 if (r == com.pokedaisy.app.companion.data.TradeEvoResult.EVOLVING) closeCompanionWindow()
                 done(r)
             }) { s, calls, busy -> com.pokedaisy.app.companion.data.tradeEvolve(s.fns, evo, slot, personality, busy, calls) }
+        }
+
+        override fun canHatch() = Prefs(this@PokeDaisyActivity).quickHatch && quickHatchOff() != null
+
+        override fun hatch(slot: Int, personality: Long, done: (com.pokedaisy.app.companion.data.HatchResult) -> Unit) {
+            val off = quickHatchOff()
+            val cfg = com.pokedaisy.app.companion.data.activeNativeConfig
+            if (off == null || cfg == null || !Prefs(this@PokeDaisyActivity).quickHatch) return done(com.pokedaisy.app.companion.data.HatchResult.FAILED)
+            if (!::engine.isInitialized || !engine.onField.value) return done(com.pokedaisy.app.companion.data.HatchResult.NOT_NOW)
+            onGame(com.pokedaisy.app.companion.data.HatchResult.FAILED, { r ->
+                // The player walks next: the window over the game goes.
+                if (r == com.pokedaisy.app.companion.data.HatchResult.HATCHING) closeCompanionWindow()
+                done(r)
+            }) { s, calls, busy ->
+                com.pokedaisy.app.companion.data.hatchSoon(s.fns, cfg.saveBlock1Ptr, cfg.staticSaveBlocks, off, slot, personality, busy, calls)
+            }
         }
 
         /** A PC move ([move]) on the emu thread, its NOT_NOW told apart from a battle's. */
@@ -1285,10 +1395,21 @@ class PokeDaisyActivity : Activity() {
             if (::engine.isInitialized) engine.wildEncounters = percent
         }
         override val wildEncountersSupported get() = (fieldGame != WideScreen.OFF && wildFlag != 0L) || gbField() != null ||
+            (com.pokedaisy.app.companion.data.activeNativeConfig?.wildGate ?: 0L) != 0L ||
             romIsNds && ::engine.isInitialized && engine.fieldState and MgbaCore.FIELD_KNOWN != 0
         override val tradeEvolutions get() = Prefs(this@PokeDaisyActivity).tradeEvolutions
         override fun setTradeEvolutions(on: Boolean) { Prefs(this@PokeDaisyActivity).tradeEvolutions = on }
         override val tradeEvolutionsSupported get() = tradeEvoFns() != null
+        override val quickHatch get() = Prefs(this@PokeDaisyActivity).quickHatch
+        override fun setQuickHatch(on: Boolean) { Prefs(this@PokeDaisyActivity).quickHatch = on }
+        override val quickHatchSupported get() = quickHatchOff() != null
+        override val levelUpAllSupported get() = com.pokedaisy.app.companion.data.activeNativeConfig?.levelUpAll != null && fieldItemSupport() != null
+        override fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) = this@PokeDaisyActivity.levelUpOffer(done)
+        override fun levelUpApply(
+            planned: List<com.pokedaisy.app.companion.data.PlannedRaise>,
+            rules: com.pokedaisy.app.companion.data.LevelUpRules,
+            done: (com.pokedaisy.app.companion.data.LevelUpResult) -> Unit,
+        ) = this@PokeDaisyActivity.levelUpApply(planned, rules, done)
         override val reusableTms get() = Prefs(this@PokeDaisyActivity).reusableTms
         override fun setReusableTms(on: Boolean) {
             if (coopRefuses()) return
@@ -1297,6 +1418,15 @@ class PokeDaisyActivity : Activity() {
             if (::engine.isInitialized) engine.setReusableTms(tmSites, on)
         }
         override val reusableTmsSupported get() = tmSites.isNotEmpty()
+        override val chrookedRulesStatus get() = chrookedStatus.value
+        override val chrookedRulesRefused get() = chrookedRefused.value
+        override val chrookedRules get() = Prefs(this@PokeDaisyActivity).chrookedRules
+        override fun setChrookedRules(on: Boolean) {
+            if (coopRefuses()) return
+            Prefs(this@PokeDaisyActivity).chrookedRules = on
+            chrookedRefused.value = false
+            if (::engine.isInitialized) engine.setChrookedRules(chrookedBlocks())
+        }
         override val dsResolution get() = if (romIsNds) Prefs(this@PokeDaisyActivity).dsResolution else null
         override val dsGpuAvailable get() = GlCaps.gles32(this@PokeDaisyActivity) && MgbaCore.pkNdsGpuSupported() != 0
         override fun setDsResolution(scale: Int) {
@@ -1316,6 +1446,7 @@ class PokeDaisyActivity : Activity() {
         override val nuzlockeSupported get() = telemetry.snapshot.value.let { !it.unsupported && com.pokedaisy.app.companion.Nuzlocke.supports(it.game) }
         override val nuzlocke get() = com.pokedaisy.app.companion.Nuzlocke.on
         override fun setNuzlocke(on: Boolean) = com.pokedaisy.app.companion.Nuzlocke.setOn(on)
+        override val wildPinSupported get() = telemetry.snapshot.value.let { !it.unsupported && com.pokedaisy.app.companion.data.WildPin.offered(it.guideTables) }
         override val shinyOdds get() = shinyOddsPref()
         override fun setShinyOdds(odds: Int) {
             Prefs(this@PokeDaisyActivity).shinyOdds = odds
@@ -1955,6 +2086,9 @@ class PokeDaisyActivity : Activity() {
                 prefs.nuzlockeFor(crc), prefs.nuzlockeRunFor(crc),
                 saveOn = { prefs.setNuzlockeFor(crc, it) }, saveRun = { prefs.setNuzlockeRunFor(crc, it) },
             )
+            com.pokedaisy.app.companion.WildPins.load(prefs.wildPin) { prefs.wildPin = it }
+            com.pokedaisy.app.companion.WildPins.setPinned(null)
+            com.pokedaisy.app.companion.WildPins.host = com.pokedaisy.app.companion.WildPins.Host(::pinWild, ::unpinWild)
         }
         // RetroAchievements unlocks play the game's level-up fanfare, rendered the same way.
         unlockSound?.release()
@@ -1994,6 +2128,9 @@ class PokeDaisyActivity : Activity() {
         wildFlag = 0L
         tmSites = emptyList()
         if (::engine.isInitialized) engine.setReusableTms(tmSites, false)
+        chrookedStatus.value = null
+        chrookedRefused.value = false
+        if (::engine.isInitialized) engine.setChrookedRules(emptyList())
         shinyTarget = null
         if (::engine.isInitialized) engine.setShinyTarget(null)
         syncShinyAchievements()
@@ -2005,12 +2142,25 @@ class PokeDaisyActivity : Activity() {
             // REUSABLE TMS: the spots that use a TM up, by their code (none = the row shows N/A).
             val tms = com.pokedaisy.app.companion.data.ReusableTms.find(r)
             Log.i("pokedaisy", "reusable TMs: ${tms.size} site(s)")
+            // CHROOKED RULES: the Blocks file in the ROM file's own folder (an archive's too), refused whole unless this ROM's.
+            val rules = runCatching {
+                com.pokedaisy.app.companion.data.ChrookedRules.load(romFile.absoluteFile.parentFile, r.readBytes())
+            }.getOrElse {
+                Log.e("pokedaisy", "chrooked rules: can't read", it)
+                com.pokedaisy.app.companion.data.ChrookedRules.Status.Unreadable
+            }
+            Log.i("pokedaisy", "chrooked rules: " + when (rules) {
+                is com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready -> "${rules.blocks.size} block(s) checked"
+                else -> rules.reason
+            })
             runOnUiThread {
                 if (romData != r) return@runOnUiThread
                 wildFlag = flag
                 if (::engine.isInitialized) engine.wildFlag = flag
                 tmSites = tms
                 if (::engine.isInitialized) engine.setReusableTms(tms, Prefs(this).reusableTms)
+                chrookedStatus.value = rules
+                if (::engine.isInitialized) engine.setChrookedRules(chrookedBlocks())
             }
         }, "wild-encounters").start()
         Prefs(this).let { p ->
@@ -2074,6 +2224,10 @@ class PokeDaisyActivity : Activity() {
             ndsGameCode = ndsCode
             wideCamera = view.camera.also { it.zoomOnText = Prefs(this@PokeDaisyActivity).expandZoomOnText }
             onWideOff = { runOnUiThread { showHud(com.pokedaisy.app.companion.i18n.tr("EXPAND hit a problem and is off for this game")) } }
+            // WILD PIN: out by itself (its wild battle, a ROM that didn't match, a new core): the PINs follow.
+            onWildPinEnded = { p -> runOnUiThread { if (com.pokedaisy.app.companion.WildPins.pinned === p) com.pokedaisy.app.companion.WildPins.setPinned(null) } }
+            // CHROOKED RULES: checked against the file, but another patch sat on their bytes in the running ROM.
+            onChrookedRulesApplied = { ok -> runOnUiThread { chrookedRefused.value = !ok } }
             gen1Music = this@PokeDaisyActivity.gen1Music
             onCoreReady = { w, h ->
                 // A DS game's bottom screen goes to the bottom display (NdsBottomFrame).
@@ -2171,6 +2325,10 @@ class PokeDaisyActivity : Activity() {
                 // right then faithfully captures a real but useless "partyCount=0"
                 // moment. Bit the first fixture capture this existed for.
                 if (snap.connected && (snap.party.isNotEmpty() || forceFixtureDump)) dumpFixtureIfPending()
+                // WILD PIN: it belongs to its map; on another one it goes.
+                com.pokedaisy.app.companion.WildPins.pinned?.let { p ->
+                    if (snap.connected && !p.onMap(snap.mapGroup, snap.mapNum)) runOnUiThread { unpinWild() }
+                }
                 // NUZLOCKE: the run follows every sample; its notices go on the game screen.
                 com.pokedaisy.app.companion.Nuzlocke.onSample(snap).takeIf { it.isNotEmpty() }?.let { notes ->
                     runOnUiThread { showHud(notes.joinToString("\n"), NUZLOCKE_NOTICE_MS) }
@@ -2337,6 +2495,7 @@ class PokeDaisyActivity : Activity() {
         e.ndsScale = p.dsResolution
         e.ndsCpuBoost = p.dsCpuBoost
         e.setReusableTms(tmSites, p.reusableTms)
+        e.setChrookedRules(chrookedBlocks())
         e.setShinyTarget(shinyTarget)
         e.shinyOdds = shinyOddsPref()
     }
@@ -2832,6 +2991,8 @@ class PokeDaisyActivity : Activity() {
         samplerThread.shutdown()
         com.pokedaisy.app.companion.FeatureTips.available = { false }
         Hotkeys.dsActive = { false }
+        com.pokedaisy.app.companion.WildPins.host = null
+        com.pokedaisy.app.companion.WildPins.setPinned(null)
         // Gone while the game slept (onPause held it): stop it now, as a close would have.
         if (::engine.isInitialized && engine.running) {
             view.unbindCoreBlocking()

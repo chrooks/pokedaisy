@@ -114,6 +114,17 @@ android {
     }
 
     signingConfigs {
+        // One fixed debug key for CI builds (a fork's DEBUG_KEYSTORE_B64 secret, decoded by ci.yml), so a
+        // newer debug APK installs over the last one with `adb install -r`. Unset: the default debug key.
+        val debugKeystore = System.getenv("POKEDAISY_DEBUG_KEYSTORE")?.let { file(it) }?.takeIf { it.isFile }
+        if (debugKeystore != null) {
+            getByName("debug") {
+                storeFile = debugKeystore
+                storePassword = System.getenv("POKEDAISY_DEBUG_KEYSTORE_PASSWORD")
+                keyAlias = "pokedaisy-debug"
+                keyPassword = System.getenv("POKEDAISY_DEBUG_KEYSTORE_PASSWORD")
+            }
+        }
         if (keystoreProps != null) {
             create("release") {
                 storeFile = file(keystoreProps.getProperty("storeFile"))

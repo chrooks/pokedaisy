@@ -822,6 +822,25 @@ TMs never run out by themselves (checked headless), so `ReusableTms.BUILT_IN` sh
 list beside the cheats' in `pk_cheats.c` (`sOptions`: loading cheats never drops them), with the same overlay / RA swap, so the
 Poller's hash and RetroAchievements' see the file; they don't pause achievements. Played headless with mgba_dump's `rompatch`
 (docs/ROM_FEATURES.md note 15). The newer-engine hacks build the check another way: each needs its own site.
+**WILD PIN** (2026-11-11, a PIN on GUIDE > HERE's and the HUD WILD's GRASS / CAVE rows; GAMEPLAY > WILD PIN ON, NEW tag, OFF hides
+them; `WildPin.kt` the pure contract, `WildPins.kt` its Compose state + the activity's host, `ui/WildPinUi.kt`): the next grass / cave
+encounter on the map is the pinned species. While pinned, the map's 12 land slots ({u8 min, u8 max, u16 species}, the WildPokemonInfo's
+array: `GuideRomSource.landSlots`) go in as one ROM block, every slot the species at its own min / max on the map, guarded by the file's
+48 bytes' CRC32. `pkRomBlocks` replaces every block, so PLAYER LOOK's and the pin's go in one call (`EmulatorEngine.applyBlocks`; a pin
+that doesn't match drops and the look goes alone). One encounter (the user's call over until-caught): out on the frame a battle starts
+with gBattleTypeFlags' TRAINER clear (`WildPin.endsNow`; a trainer's battle keeps it), on another map (the activity's sample) and on
+UNPIN; never gEnemyParty, never the file or the save. RetroAchievements idle while one is in (`achievementsIdle`, WILD PIN ON / OFF,
+PAUSED: WILD PIN). Greyed with the NUZLOCKE tracker on (OFF IN A NUZLOCKE RUN) or in a battle. Games: retail English FireRed rev 1,
+LeafGreen rev 0 / 1, Emerald (randomized ones too) and Monomyth v1.0 / v1.1 (vanilla's wild headers; `WildPin.offered`, by GUIDE tables). Headless: `Pin.toText()` is mgba_dump's
+`romblocks` line. ui-preview `*-guide-pin*` (`-Prom`), `hud-wild-*` (`WildPins.preview`). Fishing / surf / other games: later.
+**CHROOKED RULES** (2026-11-12, the fork's; companion GAMEPLAY, `Prefs.chrookedRules` OFF, NEW tag; `ChrookedRules.kt`): the
+chrooked-pokedex Blocks file (`chrooked.blocks.json`, the dex's ADR 0003) in the ROM file's own folder, checked on the ROM scan
+thread against the ROM file: refused whole on a `rom_sha1` mismatch or any block's `original_crc32` (no partial write), then its
+blocks join PLAYER LOOK's and WILD PIN's in `applyBlocks`' one `pkRomBlocks` call (`ChrookedRules.attempts`: the pin drops first,
+then the look, never the rules quietly). The row is greyed with the reason (`Status.reason`), N/A outside GBA games. Headless:
+`ChrookedRulesTest` with `CHROOKED_TARGET=<folder with the ROM + file>` writes `app/build/chrooked/blocks.txt`, mgba_dump's
+`romblocks` input. Party stats are stored per Pokémon: old ones change on a level-up or a PC round trip; types at once. The
+companion's own reads go through the ROM overlay, so its DEX shows the game's original numbers.
 **LINK PLAY** (2026-11-01, a game's library menu; `LinkActivity`, `LinkCore`, native `pk_link.c` / `pk_link_jni.c`): two to
 four GBA games on mGBA's own lockstep link cable, apart from the player's core (`g`): only the games, no companion / EXPAND /
 HUD / hotkeys / FF / states. mGBA defines only the link's hooks (struct mLockstep); `pk_link.c` fills them with Qt's
@@ -836,6 +855,12 @@ EVOLVE runs the game's own GetEvolutionTargetSpecies(mon, EVO_MODE_TRADE) + Begi
 CB2_ReturnToField, controls locked first, from the field only. Which Pokémon get the button: the same call on each slot with its 100
 bytes put back (a held-item evolution's item would be spent otherwise). Records `TRADE_EVO_*` in gamedata (retail English FireRed
 rev 1, LeafGreen rev 0 / 1 - found in retail by the shifted `$DECOMPS` build's masked code - and Emerald); hacks / Kaizo / Legacy off.
+**QUICK HATCH** (2026-11-12, companion GAMEPLAY, `Prefs.quickHatch` OFF, NEW tag; `QuickHatch.kt`): an Egg's summary gets HATCH: the
+Egg's cycles (MON_DATA_FRIENDSHIP) to 0 through the game's SetMonData and SaveBlock1's daycare.stepCounter to 254, so the game's own
+TryProduceOrHatchEgg starts EventScript_EggHatch on the next step ("Huh?", the scene, the nickname question). Free field only; the window
+closes for the walk. Retail Emerald in every language (+ Kaizo, randomized), counter 0x314C, checked headless (one step, the scene,
+IS_EGG 0). FireRed / LeafGreen 0x309A and Ruby / Sapphire 0x30B6 are in the file's doc from pret's global.h, not offered until run.
+**LEVEL UP ALL** (2026-11-08, Monomyth v1.0 / v1.1, companion GAMEPLAY, NEW tag; `LevelUpAll.kt`, `ui/LevelUpAllFlow.kt`, the config's `levelUpAll` record): the party, the PC or both (`LevelUpScope`) raised to the highest level owned, the next unbeaten boss's strongest Pokémon or a level the player picks up to the higher of those two (`LevelUpOffer.pickable`: from one past the scope's lowest), written to live RAM on a free field, all or nothing (every record re-read first, put back on a failed write); the game's own save keeps it. Level evolutions (and level + ATTACK vs DEFENSE) are silent: species, a still-default name, Pokédex bits. New moves are skipped unless the player picks ASK FOR EACH (`LevelUpSession`). A box record keeps only EXP, a party one also its level and stats. Monomyth's storage is vanilla's 14 x 30 x 80 under its own key, but its box names are 21 bytes apart, and `decodeBoxMon` still uses vanilla's key: the BOXES tab stays off there.
 **PLAYER LOOK** (2026-10-22, the companion's MAKEOVER group - first, a blue-framed `featuredGroupTitle`, only in a game it works in; per ROM: `Prefs.playerLookFor`, NEW tag; `PlayerLook.kt`,
 `PlayerLookRunner.kt`, docs/DEVELOPMENT.md's "PLAYER LOOK"): play retail FireRed / LeafGreen / Ruby / Sapphire / Emerald (and Kaizo, Legacy, Imperium, Ultra
 Violet: `PlayerLook.HACKS`) as another game's hero, picked from tiles of the heroes walking (`PlayerLookPicker`),
@@ -900,6 +925,18 @@ button flips Kanto / Sevii maps, ME returns to the player. `MapSecData.kt`'s dun
 "not on the map" sections are 0,0,0,0 (they used to sit at a fake (4,4)); the grid's dungeon
 layer places them (`RegionMapModel.tilesOf`). ui-preview: `-Ponly=map` renders the tapped /
 PLACES / region states too.
+**DEX list TYPE / SORT / PARTY + PC (2026-11-11, the user's gym-prep request after chrooked-pokedex's species page)**: `DexQuery.kt`
+(pure: `TypeFilter` = a type + IS / HITS {0} HARD / RESISTS {0} over the running game's chart, `DexSort` by a base stat, highest first,
+dex order on ties) under the seen / caught filter; types + stats from `PokedexSource.entry` for *seen* entries only (`rememberDexStats`,
+IO, only while one is on: the list never tells an unseen type). `DexFilter.HELD` = `PokedexState.held` (party + PC species, set by
+`NativeReader`'s `heldSpecies` from `pcBoxes`, else Monomyth's storage through `boxSpecies`; null = no row). Short companion drops SEEN /
+OWNED. ui-preview `emerald-dex-list-*` (needs `-Prom`).
+**DEX NAME search (2026-11-11, chrookedex's search controls for the Thor, stage 1 of 3: then a token stack, then ABILITY / MOVE)**: the
+companion can't host a keyboard, so ANY NAME opens a letter grid in the list's left column (`DexNameSearch.kt`: A-Z + the seen names'
+other characters, DEL / OK under it, CLEAR by the typed name); the list filters live. Contains, case / accents / spaces folded
+(`foldDexName`), seen entries only (`filterDexByName`); a key that wouldn't find a seen name is dimmed and does nothing
+(`dexNameNextKeys`), never disabled (a disabled clickable drops the D-pad's focus). The entry page's up / down follow it
+(`DexUiState.entries(..., nameOf)`). ui-preview `emerald-dex-list-name*`.
 **DEX entry sections (GitHub #28)**: chips over the entry's right column switch INFO / EVOLVE / AREA / MOVES
 (`DexSection`, `ui/DexDetailPages.kt`; `DexUiState.section` sticks while stepping entries), data from
 `DexDetails` (`data/DexDetails.kt`, process-wide caches per ROM, IO only). EVOLVE = the whole family both ways, each

@@ -7,3 +7,6 @@ DECOMPS ?= $(HOME)/src/decomps
 
 # Optional: mon icon PNGs named <internal species id>.png, for ui-preview's fake party.
 MON_ICONS ?=
+
+# adb target for `make thor-deploy` (Tailscale / Wi-Fi adb), e.g. 100.x.y.z:5555
+# THOR_ADB =

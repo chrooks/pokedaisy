@@ -413,6 +413,20 @@ open class CompanionScreenshotTest {
     /** ...which asks first. */
     @Test fun partyDetailTradeEvolveAsk() = snapshot { AppTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = evolveUse, initialEvolveAsk = true) } }
 
+    /** QUICK HATCH (QuickHatch.kt): an Egg's summary has HATCH... */
+    @Test fun partyDetailHatch() = snapshot { AppTheme { MonDetailScreen(eggParty, 0, {}, {}, itemUse = hatchUse) } }
+
+    /** ...which asks first. */
+    @Test fun partyDetailHatchAsk() = snapshot { AppTheme { MonDetailScreen(eggParty, 0, {}, {}, itemUse = hatchUse, initialHatchAsk = true) } }
+
+    private val eggParty get() = takeParty.mapIndexed { i, m -> if (i == 0) m.copy(isEgg = true) else m }
+
+    private val hatchUse = object : com.pokedaisy.app.companion.ItemUse {
+        override fun canUse(itemId: Int) = false
+        override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) {}
+        override fun canHatch() = true
+    }
+
     private val evolveUse = object : com.pokedaisy.app.companion.ItemUse {
         override fun canUse(itemId: Int) = false
         override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) {}

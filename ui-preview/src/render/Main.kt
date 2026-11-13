@@ -204,6 +204,7 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override fun setRunIndoors(on: Boolean) { runIndoorsOn = on }
     override val runIndoorsSupported get() = true
     override val tradeEvolutionsSupported get() = true
+    override val quickHatchSupported get() = true
     private var volumePercent = 70
     override val gameVolume get() = volumePercent
     override fun setGameVolume(percent: Int) { volumePercent = percent }
@@ -215,6 +216,20 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override val reusableTms get() = reusableTmsOn
     override fun setReusableTms(on: Boolean) { reusableTmsOn = on }
     override val reusableTmsSupported get() = true
+    // CHROOKED RULES: -Pchrooked=missing / wrong / mismatch / unreadable / refused shows that greyed row; default a ready file.
+    private var chrookedOn = false
+    override val chrookedRulesStatus get() = when (System.getProperty("chrooked").orEmpty()) {
+        "missing" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Missing
+        "wrong" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.WrongRom
+        "mismatch" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Mismatch
+        "unreadable" -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Unreadable
+        else -> com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready(emptyList())
+    }
+    override val chrookedRulesRefused get() = System.getProperty("chrooked") == "refused"
+    override val chrookedRules get() = chrookedOn || System.getProperty("chrooked") == "refused"
+    override fun setChrookedRules(on: Boolean) { chrookedOn = on }
+    override val levelUpAllSupported get() = true
+    override fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) = done(previewLevelUpOffer())
     private var shinyOddsValue = com.pokedaisy.app.companion.data.ShinyOdds.NORMAL
     override val shinyOdds get() = shinyOddsValue
     override fun setShinyOdds(odds: Int) { shinyOddsValue = odds }
@@ -462,6 +477,9 @@ fun companion(
     content
 }
 
+/** The preview save with its lead an Egg (QUICK HATCH's shots). */
+fun eggSnapshot(): SnapshotView = snapshot().let { s -> s.copy(party = s.party.mapIndexed { i, m -> if (i == 0) m.copy(isEgg = true) else m }) }
+
 /**
  * USE / GIVE as retail FireRed rev 1 answers them (FieldItems.kt), for every game's preview - so each
  * BagPalette shows the row mark, though the app has it on FireRed rev 1 only so far. The lead holds
@@ -477,6 +495,10 @@ class PreviewItemUse(private val party: List<MonView>, private val bagFull: Bool
         done(com.pokedaisy.app.companion.data.BoxSwapResult.SWAPPED)
     override fun withdrawFromBox(box: Int, slot: Int, boxPersonality: Long, done: (com.pokedaisy.app.companion.data.BoxSwapResult) -> Unit) =
         done(com.pokedaisy.app.companion.data.BoxSwapResult.SWAPPED)
+    // QUICK HATCH: an Egg's summary has HATCH; confirming it says to take a step.
+    override fun canHatch() = true
+    override fun hatch(slot: Int, personality: Long, done: (com.pokedaisy.app.companion.data.HatchResult) -> Unit) =
+        done(com.pokedaisy.app.companion.data.HatchResult.HATCHING)
     // PC anywhere: the button shows; a tap answers "not now" (a menu open), as the BAG pops it up.
     override fun canPc() = true
     override fun openPc(done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) =
@@ -585,6 +607,25 @@ fun realShinyBattle(state: Int): SnapshotView {
     com.pokedaisy.app.companion.data.DecompIconSource.tables = icons
     // The preview's own battle (connected, its game, its party) with the real battlers in it.
     return battle(state).copy(battlePlayer = real.battlePlayer, battleOpponent = real.battleOpponent)
+}
+
+/** LEVEL UP ALL over made-up records: nine below Lv34, six below the next boss's Lv21, two with a move to answer. */
+private fun previewLevelUpOffer(): com.pokedaisy.app.companion.data.LevelUpOffer {
+    val rules = com.pokedaisy.app.companion.data.LevelUpRules(
+        com.pokedaisy.app.companion.data.MONOMYTH_PARTY_MON, expRow = { null }, baseStats = { null }, movePp = { 20 },
+    )
+    val planned = (0 until 9).map { i ->
+        com.pokedaisy.app.companion.data.PlannedRaise(
+            com.pokedaisy.app.companion.data.RosterSlot(0x02000000L + i * 100, true, ByteArray(100)),
+            com.pokedaisy.app.companion.data.RaisePlan(12, 34, 25, if (i == 0) 1 else 25, if (i < 2) listOf(85) else emptyList()),
+            intArrayOf(33, 45, 98, 84),
+        )
+    }
+    return com.pokedaisy.app.companion.data.LevelUpOffer(
+        rules, com.pokedaisy.app.companion.data.LevelUpChoice(34, planned),
+        com.pokedaisy.app.companion.data.LevelUpChoice(21, planned.take(6)), "SANTANA",
+        partyLowest = 12, pcLowest = 9, planAt = { planned },
+    )
 }
 
 /** The wild foe shiny (SHINY ODDS' marks). */
@@ -716,7 +757,39 @@ fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h:
         com.pokedaisy.app.companion.ui.DexSection.AREA to if (game == GameKind.EMERALD) 263 else 129,
         com.pokedaisy.app.companion.ui.DexSection.MOVES to if (game == GameKind.EMERALD) 252 else 1,
     )
-    return entries.map { (section, entry) ->
+    // The list's TYPE filter + SORT (water hitters by ATTACK, the party's species as PARTY + PC), and its pick-lists.
+    fun listShot(name: String, setUp: com.pokedaisy.app.companion.ui.DexUiState.() -> Unit, tap: (SkikoComposeUiTest.() -> Unit)? = null) =
+        Shot("$g-dex-list-$name", w, h, d, {
+            val held = dex.copy(held = setOf(6, 9, 25, 130, 131))
+            val content: @Composable () -> Unit = {
+                com.pokedaisy.app.companion.ui.theme.AppTheme {
+                    val ui = androidx.compose.runtime.remember {
+                        com.pokedaisy.app.companion.ui.DexUiState(androidx.compose.foundation.lazy.LazyListState()).apply(setUp)
+                    }
+                    com.pokedaisy.app.companion.ui.CompanionScreenSize { com.pokedaisy.app.companion.ui.PokedexScreen(held, ui) }
+                }
+            }
+            content
+        }) { waitUntil(5_000) { onAllNodesWithText("LOADING").fetchSemanticsNodes().isEmpty() }; tap?.invoke(this) }
+    val water = com.pokedaisy.app.companion.data.typeIdOf("Water")
+    val listShots = listOf(
+        listShot("query", {
+            filter = com.pokedaisy.app.companion.ui.DexFilter.SEEN
+            type = com.pokedaisy.app.companion.data.TypeFilter(water, com.pokedaisy.app.companion.data.TypeRelation.HITS)
+            sort = com.pokedaisy.app.companion.data.DexSort.ATTACK
+        }),
+        // NAME search: the letter grid open in the left column over a live list, then closed with the name kept.
+        listShot("name-grid", { name = "AR"; typing = true }),
+        listShot("name", { name = "AR"; sort = com.pokedaisy.app.companion.data.DexSort.SPEED }),
+        listShot("held", { filter = com.pokedaisy.app.companion.ui.DexFilter.HELD; sort = com.pokedaisy.app.companion.data.DexSort.TOTAL }),
+        listShot("type-pick", {}) { onNodeWithText("ANY TYPE").performSemanticsAction(SemanticsActions.OnClick) },
+        listShot("relation-pick", {}) {
+            onNodeWithText("ANY TYPE").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("WATER").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+    )
+    return listShots + entries.map { (section, entry) ->
         Shot("$g-dex-${section.name.lowercase()}", w, h, d, {
             val s = live(snapshot())
             val content: @Composable () -> Unit = {
@@ -1501,6 +1574,14 @@ fun main(args: Array<String>) {
         // The second Pokémon's summary with its QUICK CLAW: TAKE, or BAG FULL where the bag has no room for it.
         Shot("$g-party-detail-take", bw, bh, bd, companion("PARTY", mon = 1, items = true)),
         Shot("$g-party-detail-bagfull", bw, bh, bd, companion("PARTY", mon = 1, items = true, bagFull = true)),
+        // QUICK HATCH: the lead as an Egg gets HATCH; its question; what it says once done.
+        Shot("$g-party-detail-hatch", bw, bh, bd, companion("PARTY", mon = 0, items = true, snap = ::eggSnapshot)),
+        Shot("$g-party-detail-hatch-ask", bw, bh, bd, companion("PARTY", mon = 0, items = true, snap = ::eggSnapshot)) {
+            onNodeWithText("HATCH").performClick()
+        },
+        Shot("$g-party-detail-hatch-done", bw, bh, bd, companion("PARTY", mon = 0, items = true, snap = ::eggSnapshot)) {
+            onNodeWithText("HATCH").performClick(); waitForIdle(); onAllNodesWithText("HATCH").onLast().performClick()
+        },
         Shot("$g-expand-offer", bw, bh, bd, companion("PARTY", expandOffer = true)),
         Shot("$g-party-detail", bw, bh, bd, companion("PARTY", mon = 0)),
         Shot("$g-party-detail-next", bw, bh, bd, companion("PARTY", mon = 0)) {
@@ -1773,7 +1854,12 @@ fun main(args: Array<String>) {
         Shot("$g-settings-volume-popup", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("GAME VOLUME").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
-        Shot("$g-settings-gameplay", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("TRADE EVOS").performScrollTo() },
+        Shot("$g-settings-gameplay", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("QUICK HATCH").performScrollTo() },
+        // CHROOKED RULES flipped ON (a ready file; -Pchrooked=missing & co. for the greyed rows).
+        Shot("$g-settings-chrooked", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("CHROOKED RULES").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-chrooked-row", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("SHINY ODDS").performScrollTo() },   // the row under it: a greyed row has no node to scroll to
         Shot("$g-settings-touch", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("TOUCH CONTROLS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
@@ -1846,6 +1932,58 @@ fun main(args: Array<String>) {
         },
         Shot("$g-settings-player-look-pick", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText(com.pokedaisy.app.companion.i18n.tr("PLAYER LOOK")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // LEVEL UP ALL's pop-ups, one step further each.
+        Shot("$g-settings-level-up-who", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-target", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-pick", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PICK A LEVEL").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-picked", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY ONLY").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PICK A LEVEL").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("DONE").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-moves", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-confirm", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("ASK FOR EACH").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-level-up-ask", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText(com.pokedaisy.app.companion.i18n.tr("LEVEL UP ALL")).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("PARTY AND PC").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("HIGHEST", substring = true).performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("ASK FOR EACH").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("RAISE").performSemanticsAction(SemanticsActions.OnClick)
         },
         // SHINY ODDS under REUSABLE TMS, then its pick-list (the debug build's, with 1 IN 4 and 1 IN 1).
         Shot("$g-settings-shiny-odds", bw, bh, bd, companion("SETTINGS")) {
@@ -1942,6 +2080,55 @@ fun main(args: Array<String>) {
         Shot("$g-guide-stuck", bw, bh, bd, companion("GUIDE") { live?.invoke(snapshot()) ?: snapshot() }) {
             onNodeWithText("STUCK?").performClick()
         },
+        // WILD PIN (WildPins.preview): HERE's GRASS / CAVE rows with a PIN each, the rarest one pinned, and greyed with the
+        // NUZLOCKE tracker on. The wild lists need -Prom; the list is scrolled to them.
+        *listOf("pin" to 0, "pinned" to 1, "pin-nuzlocke" to 2).map { (name, mode) ->
+            Shot("$g-guide-$name", bw, bh, bd, {
+                val s = live?.invoke(snapshot()) ?: snapshot()
+                val rarest = s.guideTables?.let { com.pokedaisy.app.companion.data.GuideRomSource.encounters(it, s.mapGroup, s.mapNum) }
+                    ?.grass?.lastOrNull()?.species ?: 0
+                com.pokedaisy.app.companion.WildPins.preview(pinned = if (mode == 1) rarest else 0, nuzlocke = mode == 2)
+                val content: @Composable () -> Unit = {
+                    com.pokedaisy.app.companion.ui.theme.AppTheme {
+                        val ui = androidx.compose.runtime.remember { com.pokedaisy.app.companion.ui.GuideUiState() }
+                        val source = com.pokedaisy.app.companion.ui.rememberGuide(s.game, s.pokedex, s.guideTables)
+                        if (source != null) com.pokedaisy.app.companion.ui.GuideScreen(source, ui, s)
+                        androidx.compose.runtime.LaunchedEffect(Unit) {
+                            repeat(20) { androidx.compose.runtime.withFrameNanos { } }
+                            ui.list.scrollToItem(1)
+                        }
+                    }
+                }
+                content
+            })
+        }.toTypedArray(),
+        // The HUD's WILD (WildPins.preview): its panel with a PIN on the GRASS / CAVE rows, one pinned, NUZLOCKE greyed;
+        // and the WILD button wearing the pinned species with its pin.
+        *listOf("pin" to 0, "pinned" to 1, "pin-nuzlocke" to 2, "pinned-button" to 3).map { (name, mode) ->
+            Shot("hud-wild-$name", tw, th, td, {
+                val wild = listOf(
+                    com.pokedaisy.app.companion.ui.HudWild("GRASS / CAVE", 16, 2, 4, 45, seen = true, caught = true),
+                    com.pokedaisy.app.companion.ui.HudWild("GRASS / CAVE", 19, 2, 4, 45, seen = true, caught = false),
+                    com.pokedaisy.app.companion.ui.HudWild("GRASS / CAVE", 63, 5, 5, 10, seen = false, caught = false),
+                    com.pokedaisy.app.companion.ui.HudWild("SURFING", 72, 5, 30, 100, seen = true, caught = false),
+                )
+                com.pokedaisy.app.companion.WildPins.preview(pinned = if (mode == 1 || mode == 3) 19 else 0, nuzlocke = mode == 2)
+                val s = snapshot()
+                val content: @Composable () -> Unit = {
+                    com.pokedaisy.app.companion.ui.theme.AppTheme {
+                        androidx.compose.foundation.layout.Box(
+                            androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF3A6A48)),
+                        ) {
+                            com.pokedaisy.app.companion.ui.FieldHud(
+                                s, shown = true, com.pokedaisy.app.companion.FieldHudStyle(), wild = wild,
+                                initialPanel = if (mode == 3) null else com.pokedaisy.app.companion.ui.FieldHudPanel.WILD,
+                            )
+                        }
+                    }
+                }
+                content
+            })
+        }.toTypedArray(),
         // A randomized FireRed / Emerald (RandomizedRetail): TIPS with its RANDOMIZED section, WHERE IS without the gifts and
         // legendaries (Randomized.HIDE). The tables are retail's here; only the guide's lines change.
         *(if (game != GameKind.FIRERED && game != GameKind.EMERALD) emptyArray() else arrayOf(
@@ -2831,6 +3018,7 @@ fun main(args: Array<String>) {
             com.pokedaisy.app.companion.FavoriteItems.load(emptySet()) {} // a shot's stars don't carry into the next
             com.pokedaisy.app.companion.data.PlayerLook.worn.value = null
             com.pokedaisy.app.companion.data.randomizedRetail = null // only the randomized shots set it
+            com.pokedaisy.app.companion.WildPins.endPreview() // only the WILD PIN shots set it
             val content = shot.content()
             runSkikoComposeUiTest(Size(shot.w.toFloat(), shot.h.toFloat()), Density(shot.density)) {
                 // Manual clock: the party icons / map highlight animate forever,

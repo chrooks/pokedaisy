@@ -106,6 +106,7 @@ fun CompanionSettingsScreen(
     DisposableEffect(page, capture) { onDispose { capture?.cancel() } }
     var confirm by remember { mutableStateOf<Confirm?>(null) }
     var selector by remember { mutableStateOf<Selector?>(null) }
+    var levelUp by remember { mutableStateOf<LevelUpStep?>(null) }
 
     // The games' own spelling: "POKéMON", not "POKÉMON".
     val gameName = settings?.gameName?.uppercase()?.replace('É', 'é') ?: ""
@@ -148,7 +149,8 @@ fun CompanionSettingsScreen(
                     Page.HOME -> playsAs?.let { game ->
                         listOf(groupTitle(tk("GAME")), SettingRow(tk("PLAYS AS"), game, subtitle = "Which game this ROM is read as", opensPage = true) { onPlaysAs() })
                     }.orEmpty() + homeRows(settings, barCount(settings, availableTabs), { tick++ }, { page = it }, { selector = it },
-                        { c -> confirm = Confirm(c.title, c.message, c.confirmLabel, c.onConfirm).also { it.cancelLabel = c.cancelLabel; it.onCancel = c.onCancel } })
+                        { c -> confirm = Confirm(c.title, c.message, c.confirmLabel, c.onConfirm).also { it.cancelLabel = c.cancelLabel; it.onCancel = c.onCancel } },
+                        { startLevelUp(settings) { levelUp = it } })
                     Page.TABS -> COMPANION_TABS.map { id ->
                         val shown = id in settings.companionTabs
                         // A tab this game doesn't have (DEX, GUIDE) keeps its setting for the games that do.
@@ -378,6 +380,7 @@ fun CompanionSettingsScreen(
                 badge = sel.badge, note = sel.note,
             )
         }
+        settings?.let { s -> levelUp?.let { step -> LevelUpAllFlow(s, step, m) { levelUp = it } } }
         confirm?.let { c ->
             OptionConfirm(
                 c.title, c.message, c.confirmLabel, m,
@@ -451,6 +454,7 @@ private fun homeRows(
     navigate: (Page) -> Unit,
     select: (Selector) -> Unit,
     askLock: (CoopLockAsk) -> Unit = {},
+    levelUpAll: () -> Unit = {},
 ): List<SettingRow> {
     fun onOff(on: Boolean) = if (on) tk("ON") else tk("OFF")
     val rateLabels = FF_RATES.map(::rateLabel)
@@ -564,6 +568,40 @@ private fun homeRows(
             subtitle = "Evolve without a trade",
         ) {
             if (s.tradeEvolutionsSupported) { s.setTradeEvolutions(!s.tradeEvolutions); changed() }
+        },
+        // An Egg's summary gets HATCH: it hatches on the next step, the game's own hatch (QuickHatch.kt).
+        SettingRow(
+            tk("QUICK HATCH"), if (s.quickHatchSupported) onOff(s.quickHatch) else tk("N/A"),
+            enabled = s.quickHatchSupported, labelBadge = NewFeatures.badge(NewFeatures.QUICK_HATCH),
+            subtitle = "Hatch an Egg on your next step",
+        ) {
+            if (s.quickHatchSupported) { s.setQuickHatch(!s.quickHatch); changed() }
+        },
+        // The whole party and PC brought up to one level (LevelUpAll.kt), only in a game whose records it knows.
+        if (s.levelUpAllSupported) SettingRow(
+            tk("LEVEL UP ALL"), null, labelBadge = NewFeatures.badge(NewFeatures.LEVEL_UP_ALL),
+            subtitle = "Bring your party and PC up to one level",
+        ) { levelUpAll() } else null,
+        // A PIN on GUIDE > HERE's and the HUD's grass rows: the next wild one on the map is the pick (WildPin.kt). OFF hides them.
+        SettingRow(
+            tk("WILD PIN"), if (s.wildPinSupported) onOff(s.wildPin) else tk("N/A"), enabled = s.wildPinSupported,
+            labelBadge = NewFeatures.badge(NewFeatures.WILD_PIN), subtitle = "Pick the next wild POKéMON from HERE",
+        ) {
+            if (s.wildPinSupported) { s.setWildPin(!s.wildPin); changed() }
+        },
+        // The chrooked-pokedex Blocks file beside the ROM into the game (ChrookedRules.kt): greyed with the reason when it
+        // isn't there, isn't this ROM's or the running ROM won't take it. No row outside GBA games.
+        s.chrookedRulesStatus?.let { st ->
+            val ready = st is com.pokedaisy.app.companion.data.ChrookedRules.Status.Ready
+            SettingRow(
+                tk("CHROOKED RULES"), if (ready) onOff(s.chrookedRules) else tk("N/A"), enabled = ready,
+                labelBadge = NewFeatures.badge(NewFeatures.CHROOKED_RULES), labelWeight = 0.68f,   // the long label keeps its NEW tag
+                subtitle = if (ready && s.chrookedRules && s.chrookedRulesRefused) {
+                    com.pokedaisy.app.companion.data.ChrookedRules.Status.Refused.reason
+                } else st.reason,
+            ) {
+                if (ready) { s.setChrookedRules(!s.chrookedRules); changed() }
+            }
         },
         // A new wild foe made shiny at these odds before its battle draws it (ShinyOdds.kt; the versions it knows by hash).
         SettingRow(
