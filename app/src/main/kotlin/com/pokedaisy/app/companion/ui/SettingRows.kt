@@ -173,6 +173,7 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "NUZLOCKE" to "nuzlocke challenge hardcore run tracker encounter first catch per route area death dead faint permadeath graveyard dupes clause",
     "LEVEL UP ALL" to "level up all raise train exp experience grind catch up party box boxes pc highest next boss cap evolve new moves",
     "TRADE EVOS" to "trade evolutions trading evolve evolves evolution evolutions traded link cable friend second game without trading held item",
+    "QUICK HATCH" to "quick hatch egg eggs hatching hatch now instant fast faster breed breeding daycare day care steps walk",
     "REUSABLE TMS" to "reusable tm tms technical machine machines reuse infinite unlimited keep tm single use consumed used up teach moves",
     "CHROOKED RULES" to "chrooked rules ruleset dex pokedex blocks file base stats types rebalance balance custom changes patch",
     "WILD PIN" to "wild pin pinned unpin pick choose target hunt hunting rare slot next encounter guaranteed grass cave here wild list chain",

@@ -532,6 +532,17 @@ class PokeDaisyActivity : Activity() {
         return v
     }
 
+    /** QUICK HATCH's daycare step counter offset in SaveBlock1 ([com.pokedaisy.app.companion.data.quickHatchCounterOff]), only
+     * where the game's party calls are there too; null in every other game. */
+    private fun quickHatchOff(): Int? {
+        if (romIsGameBoy || romIsNds) return null
+        val hack = com.pokedaisy.app.companion.data.runningFireRedHack != null || com.pokedaisy.app.companion.data.runningEmeraldHack != null ||
+            com.pokedaisy.app.companion.data.emeraldLegacy
+        val off = com.pokedaisy.app.companion.data.quickHatchCounterOff(telemetry.snapshot.value.game, romCode, hack) ?: return null
+        if (com.pokedaisy.app.companion.data.activeNativeConfig == null || fieldItemSupport()?.fns?.party == null) return null
+        return off
+    }
+
     /** A Game Boy game's PC / FLY / WILD ENCOUNTERS ([com.pokedaisy.app.companion.data.GbField]): English Yellow and
      * Crystal, their code checked in the cart once per ROM. */
     @Volatile private var gbFieldCache: Pair<String, com.pokedaisy.app.companion.data.GbField?>? = null
@@ -731,6 +742,22 @@ class PokeDaisyActivity : Activity() {
                 if (r == com.pokedaisy.app.companion.data.TradeEvoResult.EVOLVING) closeCompanionWindow()
                 done(r)
             }) { s, calls, busy -> com.pokedaisy.app.companion.data.tradeEvolve(s.fns, evo, slot, personality, busy, calls) }
+        }
+
+        override fun canHatch() = Prefs(this@PokeDaisyActivity).quickHatch && quickHatchOff() != null
+
+        override fun hatch(slot: Int, personality: Long, done: (com.pokedaisy.app.companion.data.HatchResult) -> Unit) {
+            val off = quickHatchOff()
+            val cfg = com.pokedaisy.app.companion.data.activeNativeConfig
+            if (off == null || cfg == null || !Prefs(this@PokeDaisyActivity).quickHatch) return done(com.pokedaisy.app.companion.data.HatchResult.FAILED)
+            if (!::engine.isInitialized || !engine.onField.value) return done(com.pokedaisy.app.companion.data.HatchResult.NOT_NOW)
+            onGame(com.pokedaisy.app.companion.data.HatchResult.FAILED, { r ->
+                // The player walks next: the window over the game goes.
+                if (r == com.pokedaisy.app.companion.data.HatchResult.HATCHING) closeCompanionWindow()
+                done(r)
+            }) { s, calls, busy ->
+                com.pokedaisy.app.companion.data.hatchSoon(s.fns, cfg.saveBlock1Ptr, cfg.staticSaveBlocks, off, slot, personality, busy, calls)
+            }
         }
 
         /** A PC move ([move]) on the emu thread, its NOT_NOW told apart from a battle's. */
@@ -1373,6 +1400,9 @@ class PokeDaisyActivity : Activity() {
         override val tradeEvolutions get() = Prefs(this@PokeDaisyActivity).tradeEvolutions
         override fun setTradeEvolutions(on: Boolean) { Prefs(this@PokeDaisyActivity).tradeEvolutions = on }
         override val tradeEvolutionsSupported get() = tradeEvoFns() != null
+        override val quickHatch get() = Prefs(this@PokeDaisyActivity).quickHatch
+        override fun setQuickHatch(on: Boolean) { Prefs(this@PokeDaisyActivity).quickHatch = on }
+        override val quickHatchSupported get() = quickHatchOff() != null
         override val levelUpAllSupported get() = com.pokedaisy.app.companion.data.activeNativeConfig?.levelUpAll != null && fieldItemSupport() != null
         override fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) = this@PokeDaisyActivity.levelUpOffer(done)
         override fun levelUpApply(

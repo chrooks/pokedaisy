@@ -569,6 +569,14 @@ private fun homeRows(
         ) {
             if (s.tradeEvolutionsSupported) { s.setTradeEvolutions(!s.tradeEvolutions); changed() }
         },
+        // An Egg's summary gets HATCH: it hatches on the next step, the game's own hatch (QuickHatch.kt).
+        SettingRow(
+            tk("QUICK HATCH"), if (s.quickHatchSupported) onOff(s.quickHatch) else tk("N/A"),
+            enabled = s.quickHatchSupported, labelBadge = NewFeatures.badge(NewFeatures.QUICK_HATCH),
+            subtitle = "Hatch an Egg on your next step",
+        ) {
+            if (s.quickHatchSupported) { s.setQuickHatch(!s.quickHatch); changed() }
+        },
         // The whole party and PC brought up to one level (LevelUpAll.kt), only in a game whose records it knows.
         if (s.levelUpAllSupported) SettingRow(
             tk("LEVEL UP ALL"), null, labelBadge = NewFeatures.badge(NewFeatures.LEVEL_UP_ALL),

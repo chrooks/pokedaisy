@@ -152,6 +152,11 @@ class Prefs(context: Context) {
         get() = p.getBoolean("trade_evolutions", false)
         set(v) = p.edit().putBoolean("trade_evolutions", v).apply()
 
+    /** QUICK HATCH: an Egg in the party gets a HATCH button on its summary, which hatches it on the next step (QuickHatch.kt). */
+    var quickHatch: Boolean
+        get() = p.getBoolean("quick_hatch", false)
+        set(v) = p.edit().putBoolean("quick_hatch", v).apply()
+
     /** REUSABLE TMS: a TM stays in the bag after it teaches a move, as an HM does (ReusableTms.kt). */
     var reusableTms: Boolean
         get() = p.getBoolean("reusable_tms", false)

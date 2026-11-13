@@ -50,6 +50,8 @@ object NewFeatures {
     const val REUSABLE_TMS = "reusable_tms"
     /** SETTINGS > TRADE EVOLUTIONS: a trade evolution from the Pokémon's summary (companion.data.TradeEvolution). */
     const val TRADE_EVOLUTIONS = "trade_evolutions"
+    /** SETTINGS > QUICK HATCH: an Egg hatches on the next step, from its summary (companion.data.QuickHatch). */
+    const val QUICK_HATCH = "quick_hatch"
     /** SETTINGS > LEVEL UP ALL: the party and PC brought up to one level (companion.data.LevelUpAll). */
     const val LEVEL_UP_ALL = "level_up_all"
 
@@ -145,7 +147,7 @@ object NewFeatures {
         COMPANION_TAB, REUSABLE_TMS, SHINY_ODDS, UNLIT_SCREEN, LIGHT_COMPANION, X_COMPANION, PLAYER_LOOK, RIVAL_LOOK, TEXT_LOOK, DAY_NIGHT,
         FOLLOWER, COMPANION_HOTKEY, NUZLOCKE, GBA_BUTTONS, DS_RESOLUTION, TIPS, ROMS_FOLDERS, SAVE_BACKUPS, DISCORD, BOXES_TAB,
         GAME_VOLUME, ROM_PATCH, TRADE_EVOLUTIONS, LEVEL_UP_ALL, DS_LAYOUT, DS_CPU_BOOST, LINK_PLAY, BATTLE_FOCUS, THEMES, SAVE_TRADE,
-        WILD_PIN, CHROOKED_RULES,
+        WILD_PIN, CHROOKED_RULES, QUICK_HATCH,
     )
 
     private const val DAYS = 7

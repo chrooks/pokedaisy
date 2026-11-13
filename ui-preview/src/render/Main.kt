@@ -204,6 +204,7 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override fun setRunIndoors(on: Boolean) { runIndoorsOn = on }
     override val runIndoorsSupported get() = true
     override val tradeEvolutionsSupported get() = true
+    override val quickHatchSupported get() = true
     private var volumePercent = 70
     override val gameVolume get() = volumePercent
     override fun setGameVolume(percent: Int) { volumePercent = percent }
@@ -476,6 +477,9 @@ fun companion(
     content
 }
 
+/** The preview save with its lead an Egg (QUICK HATCH's shots). */
+fun eggSnapshot(): SnapshotView = snapshot().let { s -> s.copy(party = s.party.mapIndexed { i, m -> if (i == 0) m.copy(isEgg = true) else m }) }
+
 /**
  * USE / GIVE as retail FireRed rev 1 answers them (FieldItems.kt), for every game's preview - so each
  * BagPalette shows the row mark, though the app has it on FireRed rev 1 only so far. The lead holds
@@ -491,6 +495,10 @@ class PreviewItemUse(private val party: List<MonView>, private val bagFull: Bool
         done(com.pokedaisy.app.companion.data.BoxSwapResult.SWAPPED)
     override fun withdrawFromBox(box: Int, slot: Int, boxPersonality: Long, done: (com.pokedaisy.app.companion.data.BoxSwapResult) -> Unit) =
         done(com.pokedaisy.app.companion.data.BoxSwapResult.SWAPPED)
+    // QUICK HATCH: an Egg's summary has HATCH; confirming it says to take a step.
+    override fun canHatch() = true
+    override fun hatch(slot: Int, personality: Long, done: (com.pokedaisy.app.companion.data.HatchResult) -> Unit) =
+        done(com.pokedaisy.app.companion.data.HatchResult.HATCHING)
     // PC anywhere: the button shows; a tap answers "not now" (a menu open), as the BAG pops it up.
     override fun canPc() = true
     override fun openPc(done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) =
@@ -1566,6 +1574,14 @@ fun main(args: Array<String>) {
         // The second Pokémon's summary with its QUICK CLAW: TAKE, or BAG FULL where the bag has no room for it.
         Shot("$g-party-detail-take", bw, bh, bd, companion("PARTY", mon = 1, items = true)),
         Shot("$g-party-detail-bagfull", bw, bh, bd, companion("PARTY", mon = 1, items = true, bagFull = true)),
+        // QUICK HATCH: the lead as an Egg gets HATCH; its question; what it says once done.
+        Shot("$g-party-detail-hatch", bw, bh, bd, companion("PARTY", mon = 0, items = true, snap = ::eggSnapshot)),
+        Shot("$g-party-detail-hatch-ask", bw, bh, bd, companion("PARTY", mon = 0, items = true, snap = ::eggSnapshot)) {
+            onNodeWithText("HATCH").performClick()
+        },
+        Shot("$g-party-detail-hatch-done", bw, bh, bd, companion("PARTY", mon = 0, items = true, snap = ::eggSnapshot)) {
+            onNodeWithText("HATCH").performClick(); waitForIdle(); onAllNodesWithText("HATCH").onLast().performClick()
+        },
         Shot("$g-expand-offer", bw, bh, bd, companion("PARTY", expandOffer = true)),
         Shot("$g-party-detail", bw, bh, bd, companion("PARTY", mon = 0)),
         Shot("$g-party-detail-next", bw, bh, bd, companion("PARTY", mon = 0)) {
@@ -1838,7 +1854,7 @@ fun main(args: Array<String>) {
         Shot("$g-settings-volume-popup", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("GAME VOLUME").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
-        Shot("$g-settings-gameplay", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("TRADE EVOS").performScrollTo() },
+        Shot("$g-settings-gameplay", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("QUICK HATCH").performScrollTo() },
         // CHROOKED RULES flipped ON (a ready file; -Pchrooked=missing & co. for the greyed rows).
         Shot("$g-settings-chrooked", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("CHROOKED RULES").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)

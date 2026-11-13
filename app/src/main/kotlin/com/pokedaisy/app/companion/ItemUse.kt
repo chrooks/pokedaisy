@@ -82,6 +82,13 @@ interface ItemUse {
     fun tradeEvolve(slot: Int, personality: Long, done: (com.pokedaisy.app.companion.data.TradeEvoResult) -> Unit) =
         done(com.pokedaisy.app.companion.data.TradeEvoResult.FAILED)
 
+    /** QUICK HATCH (QuickHatch.kt): the setting is on and this game's daycare step counter is known. */
+    fun canHatch(): Boolean = false
+
+    /** Makes party slot [slot] ([personality]), an Egg, hatch on the player's next step on the field. */
+    fun hatch(slot: Int, personality: Long, done: (com.pokedaisy.app.companion.data.HatchResult) -> Unit) =
+        done(com.pokedaisy.app.companion.data.HatchResult.FAILED)
+
     /** WITHDRAW: box [box]'s slot [slot] ([boxPersonality]) into the party in the game. */
     fun withdrawFromBox(
         box: Int, slot: Int, boxPersonality: Long,
