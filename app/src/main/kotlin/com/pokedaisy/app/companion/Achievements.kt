@@ -48,6 +48,8 @@ data class AchievementsState(
     val cheatsPaused: Boolean = false,
     /** SHINY ODDS is raised: paused the same way until it's NORMAL again. */
     val shinyOddsPaused: Boolean = false,
+    /** A WILD PIN is on: paused the same way until it ends. */
+    val wildPinPaused: Boolean = false,
 )
 
 data class Leaderboard(

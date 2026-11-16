@@ -152,10 +152,26 @@ class Prefs(context: Context) {
         get() = p.getBoolean("trade_evolutions", false)
         set(v) = p.edit().putBoolean("trade_evolutions", v).apply()
 
+    /** QUICK HATCH: an Egg in the party gets a HATCH button on its summary, which hatches it on the next step (QuickHatch.kt). */
+    var quickHatch: Boolean
+        get() = p.getBoolean("quick_hatch", false)
+        set(v) = p.edit().putBoolean("quick_hatch", v).apply()
+
     /** REUSABLE TMS: a TM stays in the bag after it teaches a move, as an HM does (ReusableTms.kt). */
     var reusableTms: Boolean
         get() = p.getBoolean("reusable_tms", false)
         set(v) = p.edit().putBoolean("reusable_tms", v).apply()
+
+    /** CHROOKED RULES (OFF by default): the chrooked-pokedex Blocks file beside the ROM goes into the game
+     * ([com.pokedaisy.app.companion.data.ChrookedRules]). */
+    var chrookedRules: Boolean
+        get() = p.getBoolean("chrooked_rules", false)
+        set(v) = p.edit().putBoolean("chrooked_rules", v).apply()
+
+    /** GAMEPLAY > WILD PIN (ON by default): the PIN on HERE's and the HUD's WILD rows ([com.pokedaisy.app.companion.data.WildPin]). */
+    var wildPin: Boolean
+        get() = p.getBoolean("wild_pin", true)
+        set(v) = p.edit().putBoolean("wild_pin", v).apply()
 
     /** SHINY ODDS: a wild foe is shiny 1 in this many ([com.pokedaisy.app.companion.data.ShinyOdds]; NORMAL 8192 = the
      * game's own odds). Read through [com.pokedaisy.app.companion.data.ShinyOdds.choices]: a debug build's 1 in 4 / 1 in 1

@@ -251,7 +251,8 @@ fun AchievementsScreen(
             else -> AchievementList(
                 state.achievements, game, filter, { picking = true }, m, small, Modifier.weight(1f),
                 onLeaderboards = if (state.leaderboards.isNotEmpty()) ({ showBoards = true }) else null,
-                paused = when { state.cheatsPaused -> tk("PAUSED: CHEATS ON"); state.shinyOddsPaused -> tk("PAUSED: SHINY ODDS"); else -> null },
+                paused = when { state.cheatsPaused -> tk("PAUSED: CHEATS ON"); state.shinyOddsPaused -> tk("PAUSED: SHINY ODDS")
+                    state.wildPinPaused -> tk("PAUSED: WILD PIN"); else -> null },
                 listState = listState,
                 marked = marked,
             )

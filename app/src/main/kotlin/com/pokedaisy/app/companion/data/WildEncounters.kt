@@ -26,6 +26,18 @@ import java.nio.channels.FileChannel
  * frames, so that share of the steps that would have met a Pokémon are let through).
  */
 object WildEncounters {
+    /**
+     * A game with no switch byte but a gate function (`NativeConfig.wildGate`: StandardWildEncounter's first call,
+     * 1 = no encounter): while OFF the app patches its first two instructions to `movs r0, #1; bx lr` through
+     * [com.pokedaisy.app.MgbaCore.pkRomPatch], only where the ROM holds the gcc prologue [PROLOGUE] (`push {r4, lr};
+     * ldr r4, [pc, #0x10]`), the file's bytes kept for the hashes (pk_cheats.c). ON takes the patch out. The save is
+     * never touched (Monomyth's gate reads a save bit, which a RAM hold would have risked).
+     */
+    object Gate {
+        val PROLOGUE = byteArrayOf(0x10, 0xB5.toByte(), 0x04, 0x4C)
+        val RETURN_1 = byteArrayOf(0x01, 0x20, 0x70, 0x47)
+    }
+
     /** Percent of wild encounters left: NORMAL (the game's), 75 / 50 / 25 %, OFF. */
     val STEPS = listOf(100, 75, 50, 25, 0)
 

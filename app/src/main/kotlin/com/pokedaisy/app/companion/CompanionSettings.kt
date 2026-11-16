@@ -74,6 +74,12 @@ interface CompanionSettings {
     fun setTradeEvolutions(on: Boolean) {}
     val tradeEvolutionsSupported: Boolean get() = false
 
+    /** QUICK HATCH - see [com.pokedaisy.app.Prefs.quickHatch]; [quickHatchSupported]: this game's daycare step counter is
+     * known ([com.pokedaisy.app.companion.data.quickHatchCounterOff]) and its party calls are there. */
+    val quickHatch: Boolean get() = false
+    fun setQuickHatch(on: Boolean) {}
+    val quickHatchSupported: Boolean get() = false
+
     /** DS RESOLUTION ([com.pokedaisy.app.Prefs.dsResolution]): the scale, null when the game isn't a DS one (no row);
      * [dsGpuAvailable] false = this device can't run the GPU renderer (no OpenGL ES 3.2), so the DS's own it is. */
     val dsResolution: Int? get() = null
@@ -88,6 +94,20 @@ interface CompanionSettings {
     val dsLayout: DsLayout? get() = null
     fun setDsLayout(layout: DsLayout) {}
 
+    /** CHROOKED RULES ([com.pokedaisy.app.Prefs.chrookedRules]): [chrookedRulesStatus] = the Blocks file beside the ROM as
+     * checked ([com.pokedaisy.app.companion.data.ChrookedRules]; null = no row), [chrookedRulesRefused] = checked but the
+     * running ROM wouldn't take them. */
+    val chrookedRulesStatus: com.pokedaisy.app.companion.data.ChrookedRules.Status? get() = null
+    val chrookedRulesRefused: Boolean get() = false
+    val chrookedRules: Boolean get() = false
+    fun setChrookedRules(on: Boolean) {}
+
+    /** WILD PIN ([WildPins]): the PIN on GUIDE > HERE's and the HUD's grass rows; [wildPinSupported] = a game of its first
+     * slice ([com.pokedaisy.app.companion.data.WildPin.offered]). OFF hides every PIN. */
+    val wildPinSupported: Boolean get() = false
+    val wildPin: Boolean get() = WildPins.on
+    fun setWildPin(on: Boolean) = WildPins.setOn(on)
+
     /** NUZLOCKE ([Nuzlocke]): [nuzlockeSupported] = a GBA game whose party and battles are read; the switch is per game. */
     val nuzlockeSupported: Boolean get() = false
     val nuzlocke: Boolean get() = false
@@ -99,6 +119,16 @@ interface CompanionSettings {
     fun setShinyOdds(odds: Int) {}
     val shinyOddsChoices: List<Int> get() = com.pokedaisy.app.companion.data.ShinyOdds.CHOICES
     val shinyOddsSupported: Boolean get() = false
+
+    /** LEVEL UP ALL ([com.pokedaisy.app.companion.data.LevelUpOffer]): [levelUpOffer] answers null when the field isn't free;
+     * [levelUpApply] writes the picked plans into the game. */
+    val levelUpAllSupported: Boolean get() = false
+    fun levelUpOffer(done: (com.pokedaisy.app.companion.data.LevelUpOffer?) -> Unit) { done(null) }
+    fun levelUpApply(
+        planned: List<com.pokedaisy.app.companion.data.PlannedRaise>,
+        rules: com.pokedaisy.app.companion.data.LevelUpRules,
+        done: (com.pokedaisy.app.companion.data.LevelUpResult) -> Unit,
+    ) { done(com.pokedaisy.app.companion.data.LevelUpResult.FAILED) }
 
     /** PLAYER LOOK ([com.pokedaisy.app.companion.data.PlayerLook]): [playerLookSupported] = a FireRed / LeafGreen /
      * Emerald game; [playerLooks] = the heroes it can wear now (another game's, kept from the player's own ROMs);

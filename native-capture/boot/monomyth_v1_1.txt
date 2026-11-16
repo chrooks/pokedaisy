@@ -1,0 +1,22 @@
+# Pokémon Monomyth v1.1 (BPEE, sha1 eb660caf…) with the user's save (~/Downloads/monomyth_v1_1.sav, 0:01 played: the first
+# bedroom in CHAMOMILE TOWN, no Pokémon yet): its warnings and intro (START seven times past them: the CONTINUE menu),
+# START, then A on CONTINUE - the field (mapsec 0x00). Checked headless 2026-11-06.
+wait 300
+press START
+wait 300
+press START
+wait 300
+press START
+wait 300
+press START
+wait 300
+press START
+wait 300
+press START
+wait 300
+press START
+wait 300
+press START
+wait 300
+press A
+wait 300

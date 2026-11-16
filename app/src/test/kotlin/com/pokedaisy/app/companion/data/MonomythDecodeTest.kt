@@ -207,4 +207,56 @@ class MonomythDecodeTest {
         assertTrue(TelemetrySampler.MONOMYTH_V1_0_SHA1 in TelemetrySampler.SUPPORTED_HACK_SHA1S)
         assertTrue(TelemetrySampler.MONOMYTH_CODE in TelemetrySampler.HACK_GAME_CODES)
     }
+
+    // v1.1 (BPEE, the same build moved: gamedata/gen3/hacks/monomyth.toml). The save is the user's v1.1 one, 0:01 played.
+    private val cfg11 = NATIVE_MONOMYTH_V1_1
+
+    @Test
+    fun `v1_1 - the save, no Pokemon yet, in the first bedroom`() {
+        val t = decodeNative("monomyth_v1_1", cfg11)
+        assertTrue(t.party.isEmpty())
+        assertEquals(3000L, t.money)
+        assertFalse(t.inBattle)
+        assertEquals(1 to 1, t.mapGroup to t.mapNum)
+        assertEquals(5 to 7, t.x to t.y)
+        assertEquals(0x00, t.regionMapSectionId)
+        assertEquals("Chamomile Town", activeMapSecData[0x00]!!.name)
+        assertPocketsInRange(t)
+    }
+
+    @Test
+    fun `v1_1 - v1_0's party in its battle, its handlers 0x28 earlier`() {
+        val ram = FixtureMemoryReader.load("monomyth_v1_1_battle")
+        val t = decodeNative("monomyth_v1_1_battle", cfg11)
+        assertTrue(t.inBattle)
+        assertEquals(listOf(194, 183, 96, 72, 119, 106), t.party.map { it.species })
+        val me = t.battleMons[BATTLE_POS_PLAYER_LEFT]
+        assertEquals(Triple(194, 12, 12), Triple(me.species, me.level, me.hp))
+        assertEquals("Poliwag" to 5, t.battleMons[BATTLE_POS_OPPONENT_LEFT].let { speciesName(it.species) to it.level })
+        assertEquals(0 to BATTLE_INPUT_ACTION_SELECT, readNativeBattleInputFast(ram, cfg11))
+        assertEquals(cfg11.handleInputChooseAction, u32le(ram.readCoreMemory(cfg11.battlerControllerFuncs, 4), 0).toLong())
+        assertEquals(cfg.handleInputChooseAction - 0x28, cfg11.handleInputChooseAction)
+        assertEquals(cfg.handleInputChooseMove - 0x28, cfg11.handleInputChooseMove)
+    }
+
+    @Test
+    fun `v1_1 - the same tables moved, from its ROM`() {
+        assertEquals(cfg.playerParty to cfg.bagPockets, cfg11.playerParty to cfg11.bagPockets)   // RAM: v1.0's
+        assertEquals(FIELD_ITEMS_MONOMYTH_V1_1, cfg11.fieldItems)
+        assertEquals(GUIDE_TABLES_MONOMYTH_V1_1, cfg11.guideTables)
+        assertTrue(TelemetrySampler.MONOMYTH_V1_1_SHA1 in TelemetrySampler.SUPPORTED_HACK_SHA1S)
+        val rom = RomFileReader.load(RETAIL_ROM_DIR + "Pokemon Monomyth (v1.1).gba") ?: return
+        PokedexSource.reader = rom
+        assertTrue(pokedexMatchesRom(rom, POKEDEX_MONOMYTH_V1_1))
+        assertEquals(194, PokedexSource.speciesFor(POKEDEX_MONOMYTH_V1_1, 7))
+        val e = PokedexSource.entry(POKEDEX_MONOMYTH_V1_1, 7)!!
+        assertEquals("Rookie" to (5 to 91), e.category to (e.heightDm to e.weightHg))
+        assertEquals(listOf("Torrent"), e.abilities)
+        assertTrue(EvoLink(194, 195, listOf(EvoReq.Level(20))) in DexDetails.family(POKEDEX_MONOMYTH_V1_1, 194)!!)
+        assertTrue(LevelMove(8, 55) in DexDetails.levelUp(POKEDEX_MONOMYTH_V1_1, cfg11.guideTables, 194)!!)
+        assertTrue(DexDetails.catchSpots(cfg11.guideTables!!, 183)!!.any { it.mapsec == 0x10 && it.method == WildMethod.GRASS })
+        val support = fieldItemSupport(FIELD_ITEMS_MONOMYTH_V1_1) { a, n -> rom.readCoreMemory(a, n) }!!
+        assertTrue(support.canPc)
+        assertFalse(support.canFly)
+    }
 }

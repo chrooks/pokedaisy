@@ -179,10 +179,11 @@ private fun DrawScope.drawLayeredBoxSized(
 /**
  * A slider setting in a pop-up, for easier control than the row's small bar (GAME VOLUME: a tap on its row): the title
  * with the value, a big bar between - and + buttons, and DONE. The bar takes the D-pad first (LEFT / RIGHT step it);
- * B / BACK or a tap outside closes it. [slider] is rebuilt by the caller on every change, so it shows the new value.
+ * B / BACK or a tap outside closes it ([onDismiss]); DONE is [onDone], the same unless the value is a pick to act on.
+ * [slider] is rebuilt by the caller on every change, so it shows the new value.
  */
 @Composable
-fun OptionSliderPopup(title: String, value: String, slider: SettingSlider, m: GbaTextMetrics, onDismiss: () -> Unit) {
+fun OptionSliderPopup(title: String, value: String, slider: SettingSlider, m: GbaTextMetrics, onDismiss: () -> Unit, onDone: () -> Unit = onDismiss) {
     val u = m.u
     OptionOverlay(onDismiss, Modifier.widthIn(max = 560.dp)) {
         Column {
@@ -196,7 +197,7 @@ fun OptionSliderPopup(title: String, value: String, slider: SettingSlider, m: Gb
                         SliderStop(slider, m, Modifier.weight(1f))
                         OptionButton("+", m, onClick = { slider.set(slider.value + step) }, modifier = Modifier.size(m.rowHeight * 1.2f))
                     }
-                    OptionButton(tk("DONE"), m, onClick = onDismiss, emphasis = true, modifier = Modifier.fillMaxWidth().height(m.rowHeight * 1.3f))
+                    OptionButton(tk("DONE"), m, onClick = onDone, emphasis = true, modifier = Modifier.fillMaxWidth().height(m.rowHeight * 1.3f))
                 }
             }
         }

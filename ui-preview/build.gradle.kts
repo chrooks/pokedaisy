@@ -70,6 +70,7 @@ tasks.register<JavaExec>("render") {
     // -PcompanionW=960 [-PcompanionH=1080]: the companion as a single-screen device's side panel
     // of that size, at the density the app gives it there (sidePanelDensity).
     systemProperty("companionW", (project.findProperty("companionW") as String?) ?: "")
+    systemProperty("chrooked", (project.findProperty("chrooked") as String?) ?: "")
     systemProperty("companionH", (project.findProperty("companionH") as String?) ?: "")
     systemProperty("companionDensity", (project.findProperty("companionDensity") as String?) ?: "")
     // Optional: a ROM the GUIDE's live pages (HERE, NEXT BOSS) read from, with the

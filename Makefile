@@ -7,6 +7,7 @@
 
 SHELL := /bin/bash
 -include local.mk
+export THOR_ADB
 
 PKG           := com.pokedaisy.app
 CAPTURE_IMAGE := pokedaisy-capture
@@ -17,7 +18,7 @@ export MON_ICONS
 
 .DEFAULT_GOAL := help
 
-.PHONY: help docs-shots docs-check submodules apk install run test clean shots preview menu-shots capture-image \
+.PHONY: help thor-deploy docs-shots docs-check submodules apk install run test clean shots preview menu-shots capture-image \
         check gamedata stress test-roms test-quick version bump release-apk symbols release release-local
 
 # versionName / versionCode, read from app/build.gradle.kts.
@@ -41,6 +42,9 @@ apk: ## Build the debug APK
 
 install: ## Build + install on a connected Android device (adb)
 	./gradlew :app:installDebug
+
+thor-deploy: ## Wait for CI on the pushed HEAD, then install its debug APK in place over adb (THOR_ADB=<host:port>)
+	scripts/thor_deploy.sh
 
 run: install ## Build + install + launch the library screen on the connected device
 	adb shell am start -n $(PKG)/.LibraryActivity

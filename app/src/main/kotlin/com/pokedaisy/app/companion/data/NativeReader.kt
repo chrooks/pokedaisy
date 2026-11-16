@@ -123,9 +123,13 @@ data class NativeConfig(
     // gPartyMenu, for the battle POKéMON pane's switch where the activity takes
     // it from the config (SoulGold's releases); 0 = not here.
     val partyMenu: Long = 0,
+    /** WILD ENCOUNTERS' gate function in the ROM where the game has no switch byte ([WildEncounters.Gate]); 0 = none. */
+    val wildGate: Long = 0,
     // USE / GIVE / TAKE's functions (FieldItems.kt) for a build with no retail code to key them on (Recharged
     // Emerald's gcc rebuilds); null = by game kind and header code (fieldItemsForGame).
     val fieldItems: FieldItemFns? = null,
+    // LEVEL UP ALL's storage, name and move tables (LevelUpAll.kt); null = the game doesn't offer it.
+    val levelUpAll: LevelUpTables? = null,
     // gEnemyParty (6 encrypted Pokémon structs, like gPlayerParty) for the
     // battle's FOE TEAM; 0 = not known for this game.
     val enemyParty: Long = 0,
@@ -569,7 +573,18 @@ fun readNativeTelemetry(client: MemoryReader, cfg: NativeConfig): Telemetry {
         mapSecName = if (regionMapSectionId == 0) readHubName(client, cfg) else null,
         trainerCard = readTrainerCard(client, cfg),
         pcBoxes = if (cfg.pokemonStoragePtr != 0L) readPcBoxes(client, cfg) else null,
-    )
+    ).let { t -> t.copy(pokedex = t.pokedex?.withHeld(heldSpecies(t, client, cfg))) }
+}
+
+/**
+ * The party's and the PC's species (eggs aside), for the DEX's PARTY + PC; null when the PC isn't read: its boxes
+ * ([Telemetry.pcBoxes]), else a game LEVEL UP ALL knows the storage of ([boxSpecies]).
+ */
+private fun heldSpecies(t: Telemetry, client: MemoryReader, cfg: NativeConfig): List<Int>? {
+    val pc = t.pcBoxes?.boxes?.flatMap { b -> b.mons.filterNotNull().filter { !it.isEgg }.map { it.species } }
+        ?: cfg.levelUpAll?.let { runCatching { boxSpecies(client, it) }.getOrNull() }
+        ?: return null
+    return t.party.filter { !it.isEgg && it.species != 0 }.map { it.species } + pc
 }
 
 // struct PokemonStorage (pokefirered's include/pokemon_storage_system.h): u8 currentBox (+ 3 bytes of padding), then

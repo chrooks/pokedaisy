@@ -686,6 +686,23 @@ val POKEDEX_MONOMYTH = PokedexTables(
     nationalMagicOff = -1,
 )
 
+/**
+ * Monomyth v1.1: the same tables, moved (gamedata/gen3/hacks/monomyth.toml): the species block +0x488 (gBaseStats,
+ * species -> number with its copy after it, gAbilityNames, gEvolutionTable, gLevelUpLearnsets), the pictures and palettes
+ * +0x48C, gPokedexEntries +0x418; each checked by content (No.1 MARMROOT "Groundhog" 0.4 m 8.5 kg from species 176, front pic
+ * 176 tagged 176, 35 Torrent, species 1 -> 2 at Lv31).
+ */
+val POKEDEX_MONOMYTH_V1_1 = POKEDEX_MONOMYTH.copy(
+    entries = 0x089D3BB0L,
+    frontPics = 0x0849FBA0L,
+    palettes = 0x0848855CL,
+    speciesInfo = 0x084F7244L,
+    speciesToNational = 0x084F49A8L,
+    abilityNames = 0x084EEA8BL,
+    evoLayout = POKEDEX_MONOMYTH.evoLayout!!.copy(table = 0x08500594L),
+    levelUpLearnsets = 0x08506AD4L,
+)
+
 val POKEDEX_ROWE = PokedexTables(
     entries = 0x08F592C8L,
     frontPics = 0x083E0AA4L,
@@ -1436,7 +1453,13 @@ data class PokedexState(
     val caught: Set<Int>,
     /** SaveBlock2's nationalMagic: the National Dex has been unlocked. */
     val national: Boolean,
-)
+    /** National numbers of the Pokémon in the party or the PC right now (eggs aside); null = the PC isn't read in this game. */
+    val held: Set<Int>? = null,
+) {
+    /** [species] (party and PC species ids; null = the PC isn't read) as [held]. */
+    fun withHeld(species: List<Int>?): PokedexState =
+        copy(held = species?.mapNotNull { s -> PokedexSource.nationalOf(tables, s).takeIf { it > 0 } }?.toSet())
+}
 
 /**
  * The seen / caught flags ([PokedexTables.flags]), checked the way the game's
