@@ -379,13 +379,15 @@ change to any of the places listed under "Where it's decided" updates its rows h
     touch screen in while its battle UI's input handler is set (+0x238 -> +0x10: the commands, the moves, the party), and
     SMART FF slows down then. EXPAND and STEADY music work as HeartGold's (widecheck's overlap as US HeartGold's).
 
-30. WILD PIN (`WildPin.kt`): while a pin is on, the map's 12 land slots ({u8 min, u8 max, u16 species}, the
-    WildPokemonInfo's slot array, `GuideRomSource.landSlots`) are one ROM block beside PLAYER LOOK's (one `pkRomBlocks`
-    call: each replaces every block), every slot the pinned species at its own level range on the map, guarded by the
-    file's 48 bytes' CRC32. It goes out on the frame a battle starts with gBattleTypeFlags' TRAINER clear, on another
+30. WILD PIN (`WildPin.kt`): while a pin is on, the pinned method's slots on the map ({u8 min, u8 max, u16 species},
+    the WildPokemonInfo's slot array, `GuideRomSource.pinSlots`: `WildPin.Method` LAND 12, WATER 5, ROCK_SMASH 5,
+    FISHING 10 - all three rods' slots, so any rod catches it) are one ROM block beside PLAYER LOOK's (one `pkRomBlocks`
+    call: each replaces every block), every slot the pinned species at its own level range over that method's slots,
+    guarded by the file's bytes' CRC32. One pin at a time. It goes out on the frame a battle starts with gBattleTypeFlags' TRAINER clear, on another
     map and on UNPIN. Offered by the running GUIDE tables (`WildPin.offered`): retail English FireRed rev 1, LeafGreen
     rev 0 / 1 and Emerald, so their randomized builds too (the ROM's own species), and Monomyth v1.0 / v1.1 (vanilla's
-    wild headers and 12 land slots, checked on its ROUTE 1); grass and caves only. Headless proof:
+    wild headers; every v1.1 water / rock smash / fishing table checked: 93 / 39 / 87, all valid 5 / 5 / 10 slots, like
+    retail Emerald's 55 / 6 / 53). Headless proof:
     mgba_dump `romblocks` with `WildPin.Pin.toText()`'s line (the prove stage).
 
 ## What each column is
