@@ -176,7 +176,7 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "QUICK HATCH" to "quick hatch egg eggs hatching hatch now instant fast faster breed breeding daycare day care steps walk",
     "REUSABLE TMS" to "reusable tm tms technical machine machines reuse infinite unlimited keep tm single use consumed used up teach moves",
     "CHROOKED RULES" to "chrooked rules ruleset dex pokedex blocks file base stats types rebalance balance custom changes patch",
-    "WILD PIN" to "wild pin pinned unpin pick choose target hunt hunting rare slot next encounter guaranteed grass cave here wild list chain",
+    "WILD PIN" to "wild pin pinned unpin pick choose target hunt hunting rare slot next encounter guaranteed grass cave surf surfing water rock smash fishing fish rod here wild list chain",
     "SHINY ODDS" to "shiny shinies shiny odds shiny rate shiny hunting hunt shiny charm sparkle rare color colour chance",
     "TIPS" to "tips hints help popup pop up feature discovery introduce new features suggestions what can it do",
     "WILD ENCOUNTERS" to "wild encounters encounter rate random battles grass caves repel no encounters fewer battles",
