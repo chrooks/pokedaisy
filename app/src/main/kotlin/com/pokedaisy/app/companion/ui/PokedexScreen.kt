@@ -198,12 +198,19 @@ private fun rememberSpeciesMap(t: PokedexTables): IntArray? =
 private fun rememberDexStats(dex: PokedexState, nationals: List<Int>, needed: Boolean): Map<Int, List<Int>>? {
     val t = dex.tables
     val seen = nationals.filter { it in dex.seen }
-    return produceKeyedState<Map<Int, List<Int>>?>(null, t, seen, needed) {
-        value = if (!needed) null else withContext(Dispatchers.IO) {
+    // The last read is kept: the list comes back from an entry in the same order at once, so its place holds.
+    val kept = dexStatsKept?.takeIf { needed && it.tables === t && it.seen == seen }?.stats
+    return produceKeyedState<Map<Int, List<Int>>?>(kept, t, seen, needed) {
+        value = if (!needed) null else kept ?: withContext(Dispatchers.IO) {
             seen.mapNotNull { n -> PokedexSource.entry(t, n)?.let { n to it.baseStats } }.toMap()
-        }
+        }.also { dexStatsKept = DexStatsKept(t, seen, it) }
     }.value
 }
+
+private class DexStatsKept(val tables: PokedexTables, val seen: List<Int>, val stats: Map<Int, List<Int>>)
+
+/** [rememberDexStats]' last read, for the list and the entry page to share. Main thread only. */
+private var dexStatsKept: DexStatsKept? = null
 
 /** What the list shows: [entries] through the filters and SORT, [stats] while a stat sort is on, [loading] until they're read. */
 private class DexList(val entries: List<Int>, val stats: Map<Int, List<Int>>?, val loading: Boolean)

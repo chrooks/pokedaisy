@@ -836,7 +836,34 @@ fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h:
             }
             content
         }) { waitUntil(5_000) { onAllNodesWithText("LOADING").fetchSemanticsNodes().isEmpty() }; tap?.invoke(this) }
+    // Back from an entry of a sorted list: the list is where the entry is (three rows above it), not at its top.
+    var backUi: com.pokedaisy.app.companion.ui.DexUiState? = null
+    val backEntry = dex.caught.sorted().getOrNull(3) ?: 1
+    val backShot = Shot("$g-dex-list-sorted-back", w, h, d, {
+        val content: @Composable () -> Unit = {
+            com.pokedaisy.app.companion.ui.theme.AppTheme {
+                val ui = androidx.compose.runtime.remember {
+                    com.pokedaisy.app.companion.ui.DexUiState(androidx.compose.foundation.lazy.LazyListState())
+                        .apply { sort = com.pokedaisy.app.companion.data.DexSort.SPEED }.also { backUi = it }
+                }
+                com.pokedaisy.app.companion.ui.CompanionScreenSize {
+                    val open = ui.open
+                    if (open != null) com.pokedaisy.app.companion.ui.PokedexEntryScreen(dex, ui, open)
+                    else com.pokedaisy.app.companion.ui.PokedexScreen(dex, ui)
+                }
+            }
+        }
+        content
+    }) {
+        waitUntil(5_000) { onAllNodesWithText("LOADING").fetchSemanticsNodes().isEmpty() }
+        runOnIdle { backUi!!.open = backEntry }
+        waitForIdle()
+        runOnIdle { backUi!!.open = null }
+        waitForIdle()
+        println("sorted-back: entry No.$backEntry = species ${PokedexSource.speciesFor(dex.tables, backEntry)}, first row index ${backUi!!.list.firstVisibleItemIndex}")
+    }
     val listShots = listOf(
+        backShot,
         listShot("query", {
             filter = com.pokedaisy.app.companion.ui.DexFilter.SEEN
             type = "Water"; relation = com.pokedaisy.app.companion.data.TypeRelation.HITS
