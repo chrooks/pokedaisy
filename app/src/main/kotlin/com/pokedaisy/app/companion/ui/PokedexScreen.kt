@@ -2,7 +2,6 @@ package com.pokedaisy.app.companion.ui
 
 import com.pokedaisy.app.companion.data.pad
 import androidx.compose.ui.graphics.ImageBitmap
-import com.pokedaisy.app.companion.i18n.stripAccents
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -54,6 +53,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pokedaisy.app.companion.data.DexEntry
+import com.pokedaisy.app.companion.data.DexSort
+import com.pokedaisy.app.companion.data.TYPE_NONE
+import com.pokedaisy.app.companion.data.TypeRelation
+import com.pokedaisy.app.companion.data.dexNameKeys
+import com.pokedaisy.app.companion.data.dexNameNextKeys
+import com.pokedaisy.app.companion.data.filterDexByName
+import com.pokedaisy.app.companion.data.matchesType
+import com.pokedaisy.app.companion.data.sortDex
+import com.pokedaisy.app.companion.data.typeIdOf
 import com.pokedaisy.app.companion.data.GameKind
 import com.pokedaisy.app.companion.data.GuideTables
 import com.pokedaisy.app.companion.data.RomArt
@@ -80,7 +88,12 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.IO
 
 /** Which entries the list shows. SEEN = seen but not caught yet. [label] is English; OptionRows translates it. */
-enum class DexFilter(val label: String) { ALL(tk("ALL")), CAUGHT(tk("CAUGHT")), SEEN(tk("SEEN ONLY")), UNSEEN(tk("NOT SEEN")) }
+enum class DexFilter(val label: String) {
+    ALL(tk("ALL")), CAUGHT(tk("CAUGHT")),
+    /** In the party or the PC right now ([dexHoldings]); offered only where the boxes are read. */
+    HELD(tk("PARTY + PC")),
+    SEEN(tk("SEEN ONLY")), UNSEEN(tk("NOT SEEN")),
+}
 
 /**
  * The DEX tab's view state, held by CompanionScreen so the filter, the dex
@@ -92,9 +105,14 @@ class DexUiState(val list: LazyListState) {
     var filter by mutableStateOf(DexFilter.ALL)
     /** TYPE (GitHub #128): only entries seen with this type (English, as [MonView.types]); null = any. */
     var type by mutableStateOf<String?>(null)
-    /** NAME: only names starting with this letter ([dexInitial]); null = any. A pick-list, not a search box: the
-     * companion's screen can't host a keyboard. */
-    var letter by mutableStateOf<Char?>(null)
+    /** How an entry must relate to [type]: be it, hit it hard, or resist it. */
+    var relation by mutableStateOf(TypeRelation.IS)
+    /** NAME: only names containing this ("" = any), typed on a letter grid ([DexNameSearch]): the companion's screen
+     * can't host a keyboard. [typing] = the grid is open in the left column. */
+    var name by mutableStateOf("")
+    var typing by mutableStateOf(false)
+    /** SORT: the dex's own order, or a base stat, highest first. */
+    var sort by mutableStateOf(DexSort.NUMBER)
     /** null = follow the save (national once it's unlocked). */
     var national by mutableStateOf<Boolean?>(null)
     /** National dex number of the open entry; null = the list. */
@@ -106,30 +124,32 @@ class DexUiState(val list: LazyListState) {
 
     fun showsNational(dex: PokedexState) = !dex.tables.hasRegional || (national ?: dex.national)
 
-    /** The dex numbers the list shows: [order] (the whole dex, see [rememberDexOrder]) through the filters. [species]: dex
-     * number -> species id, without which TYPE and NAME can't filter yet. */
-    fun entries(dex: PokedexState, order: DexOrder, species: IntArray?): List<Int> {
-        val type = type.takeIf { species != null }
-        val letter = letter.takeIf { species != null }
-        return order.nationals.filter { n ->
+    /** The dex numbers the list shows, in dex order ([DexList] sorts them): [order] (the whole dex, see
+     * [rememberDexOrder]) through the filters. [species]: dex number -> species id, without which PARTY + PC, TYPE and
+     * NAME can't filter yet. [holdings]: [dexHoldings], null where the boxes aren't read (PARTY + PC then shows all).
+     * [named] false leaves NAME out: the names its letter grid can still spell. */
+    fun entries(dex: PokedexState, order: DexOrder, species: IntArray?, holdings: Map<Int, Int>? = null, named: Boolean = true): List<Int> {
+        val type = type.takeIf { species != null }?.let(::typeIdOf)?.takeIf { it != TYPE_NONE }
+        val listed = order.nationals.filter { n ->
+            val id = species?.getOrElse(n) { 0 } ?: 0
             val status = when (filter) {
                 DexFilter.ALL -> true
                 DexFilter.CAUGHT -> n in dex.caught
+                DexFilter.HELD -> holdings == null || species == null || id in holdings
                 DexFilter.SEEN -> n in dex.seen && n !in dex.caught
                 DexFilter.UNSEEN -> n !in dex.seen
             }
-            val id = species?.getOrElse(n) { 0 } ?: 0
             // An entry's type is only known once it's been seen, as in the games' own dex search.
-            status && (type == null || (n in dex.seen && type in dexTypes(id))) && (letter == null || dexInitial(id) == letter)
+            status && (type == null || (n in dex.seen && activeSpeciesTypeData[id]?.let { matchesType(it.type1, it.type2, type, relation) } == true))
         }
+        return if (!named || species == null) listed else filterDexByName(listed, name, dexNameOf(species))
     }
 }
 
 private fun dexTypes(species: Int): List<String> = activeSpeciesTypeData[species]?.let { monTypes(it.type1, it.type2) }.orEmpty()
 
-/** The letter a species' name is filed under, accents gone; null for no name. */
-private fun dexInitial(species: Int): Char? = if (species <= 0) null else
-    stripAccents(speciesName(species)).firstOrNull { it.isLetter() }?.uppercaseChar()
+/** Dex number -> the name the list shows, through [species] (0 = no species there). */
+private fun dexNameOf(species: IntArray): (Int) -> String? = { n -> species.getOrElse(n) { 0 }.takeIf { it > 0 }?.let(::speciesName) }
 
 /**
  * The dex being shown, as national numbers in its own order - national, or the
@@ -171,6 +191,36 @@ private fun rememberSpeciesMap(t: PokedexTables): IntArray? =
     }.value
 
 /**
+ * Base stats for SORT, read once per entry off the main thread, only while a stat sort is on. Entries the player hasn't
+ * seen are left out: the list mustn't tell their stats before the game does.
+ */
+@Composable
+private fun rememberDexStats(dex: PokedexState, nationals: List<Int>, needed: Boolean): Map<Int, List<Int>>? {
+    val t = dex.tables
+    val seen = nationals.filter { it in dex.seen }
+    return produceKeyedState<Map<Int, List<Int>>?>(null, t, seen, needed) {
+        value = if (!needed) null else withContext(Dispatchers.IO) {
+            seen.mapNotNull { n -> PokedexSource.entry(t, n)?.let { n to it.baseStats } }.toMap()
+        }
+    }.value
+}
+
+/** What the list shows: [entries] through the filters and SORT, [stats] while a stat sort is on, [loading] until they're read. */
+private class DexList(val entries: List<Int>, val stats: Map<Int, List<Int>>?, val loading: Boolean)
+
+@Composable
+private fun rememberDexList(dex: PokedexState, ui: DexUiState, order: DexOrder, species: IntArray?, holdings: Map<Int, Int>?): DexList {
+    val listed = ui.entries(dex, order, species, holdings)
+    val sorting = ui.sort != DexSort.NUMBER
+    val stats = rememberDexStats(dex, order.nationals, sorting)
+    return when {
+        !sorting -> DexList(listed, null, loading = false)
+        stats == null -> DexList(emptyList(), null, loading = true)
+        else -> DexList(sortDex(listed, ui.sort, stats::get), stats, loading = false)
+    }
+}
+
+/**
  * The POKéDEX: every entry of the regional or National Dex with the save's
  * seen / caught marks, filterable, over the game backdrop. The left column is
  * the counts + filters (in the OPTION look), the right the numbered list; a
@@ -191,14 +241,30 @@ fun PokedexScreen(
     val seen = dex.seen.count { it in order }
     val caught = dex.caught.count { it in order }
     val species = rememberSpeciesMap(dex.tables)
-    val entries = ui.entries(dex, order, species)
+    val list = rememberDexList(dex, ui, order, species, holdings)
+    val entries = list.entries
+    // PARTY + PC only where the boxes are read; a pick kept from another game reads as ALL.
+    val filters = DexFilter.entries.filter { it != DexFilter.HELD || holdings != null }
     val u = m.u
     var pickingType by remember { mutableStateOf(false) }
-    var pickingLetter by remember { mutableStateOf(false) }
+    /** The type picked, while its IS / HITS HARD / RESISTS list is up. */
+    var pickingRelation by remember { mutableStateOf<String?>(null) }
+    var pickingSort by remember { mutableStateOf(false) }
 
     Box(modifier.fillMaxSize()) {
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(Modifier.fillMaxHeight().weight(0.36f), verticalArrangement = Arrangement.spacedBy(u * 4)) {
+        if (ui.typing && species != null) {
+            // The grid spells the names the other filters leave: a key that would find nothing is dimmed.
+            val names = ui.entries(dex, order, species, holdings, named = false).mapNotNull(dexNameOf(species))
+            val keys = remember(names) { dexNameKeys(names) }
+            val live = remember(names, ui.name) { dexNameNextKeys(names, ui.name) }
+            DexNameSearch(
+                ui.name, keys, live, m, small,
+                onQuery = { ui.name = it },
+                onClose = { ui.typing = false },
+                modifier = Modifier.fillMaxHeight().weight(0.36f),
+            )
+        } else Column(Modifier.fillMaxHeight().weight(0.36f), verticalArrangement = Arrangement.spacedBy(u * 4)) {
             OptionTitleWindow(tk("POKéDEX"), m)
             OptionListWindow(m, Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = u * 8, vertical = u * 4), verticalArrangement = Arrangement.spacedBy(u * 3)) {
@@ -210,18 +276,21 @@ fun PokedexScreen(
                 val counts = mapOf(
                     DexFilter.ALL to last,
                     DexFilter.CAUGHT to caught,
+                    DexFilter.HELD to if (holdings == null || species == null) 0 else order.nationals.count { species.getOrElse(it) { 0 } in holdings },
                     DexFilter.SEEN to seen - caught,
                     DexFilter.UNSEEN to last - seen,
                 )
-                // TYPE and NAME are rows of the same list, which scrolls: as buttons they squeezed it away on a short screen.
+                // TYPE, NAME and SORT are rows of the same list, which scrolls: as buttons they squeezed it away on a short screen.
+                // TYPE says how the type is meant (IS FIRE, HITS FIRE HARD, RESISTS FIRE); NAME opens the letter grid in this column.
                 OptionRows(
-                    DexFilter.entries.map { f -> Triple<String, String?, () -> Unit>(f.label, "${counts[f]}", { ui.filter = f }) } + listOf(
-                        Triple(tr("TYPE") + ": " + (ui.type?.let(::typeLabel) ?: tr("ALL")), null, { pickingType = true }),
-                        Triple(tr("NAME") + ": " + (ui.letter?.toString() ?: tr("ALL")), null, { pickingLetter = true }),
+                    filters.map { f -> Triple<String, String?, () -> Unit>(f.label, "${counts[f]}", { ui.filter = f }) } + listOf(
+                        Triple(ui.type?.let { tr(ui.relation.label, typeLabel(it)) } ?: (tr("TYPE") + ": " + tr("ALL")), null, { pickingType = true }),
+                        Triple(tr("NAME") + ": " + ui.name.ifEmpty { tr("ALL") }, null, { ui.typing = true }),
+                        Triple(tr("SORT") + ": " + tr(ui.sort.label), null, { pickingSort = true }),
                     ),
                     small,
                     Modifier.fillMaxSize(),
-                    selected = ui.filter.ordinal,
+                    selected = filters.indexOf(ui.filter).coerceAtLeast(0),
                     labelWeight = 0.72f,
                 )
             }
@@ -238,9 +307,9 @@ fun PokedexScreen(
         }
 
         OptionListWindow(m, Modifier.fillMaxHeight().weight(0.64f)) {
-            if (entries.isEmpty()) {
+            if (list.loading || entries.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    GbaText(tr("NONE"), OptionColors.muted, OptionColors.mutedShadow, m)
+                    GbaText(if (list.loading) tr("LOADING") else tr("NONE"), OptionColors.muted, OptionColors.mutedShadow, m)
                 }
             } else DenseText {
                 // The list a font pixel smaller where there's room (the Thor): more entries on screen.
@@ -254,6 +323,7 @@ fun PokedexScreen(
                             order.number(n), species?.getOrNull(n) ?: 0, n in dex.caught, n in dex.seen, m, small,
                             start = n == (back ?: top),
                             holding = holdingLabel(species?.getOrNull(n) ?: 0, n in dex.caught, holdings),
+                            stat = list.stats?.get(n)?.let(ui.sort::value),
                         ) { ui.lastOpened = n; ui.open = n }
                     }
                 }
@@ -264,16 +334,24 @@ fun PokedexScreen(
         val types = remember(dex.seen, species) { dex.seen.flatMap { n -> dexTypes(species.getOrElse(n) { 0 }) }.distinct().sortedBy(::typeLabel) }
         OptionSelector(
             tr("TYPE"), listOf<String?>(null) + types, ui.type, { it?.let(::typeLabel) ?: tr("ALL") }, m,
-            onPick = { ui.type = it; pickingType = false },
+            // A type, then how it's meant.
+            onPick = { pickingType = false; if (it == null) ui.type = null else pickingRelation = it },
             onDismiss = { pickingType = false },
         )
     }
-    if (pickingLetter && species != null) {
-        val letters = remember(order, species) { order.nationals.mapNotNull { dexInitial(species.getOrElse(it) { 0 }) }.distinct().sorted() }
+    pickingRelation?.let { type ->
         OptionSelector(
-            tr("NAME"), listOf<Char?>(null) + letters, ui.letter, { it?.toString() ?: tr("ALL") }, m,
-            onPick = { ui.letter = it; pickingLetter = false },
-            onDismiss = { pickingLetter = false },
+            typeLabel(type), TypeRelation.entries, ui.relation.takeIf { ui.type == type } ?: TypeRelation.IS,
+            { tr(it.label, typeLabel(type)) }, m,
+            onPick = { ui.type = type; ui.relation = it; pickingRelation = null },
+            onDismiss = { pickingRelation = null },
+        )
+    }
+    if (pickingSort) {
+        OptionSelector(
+            tr("SORT"), DexSort.entries, ui.sort, { tr(it.label) }, m,
+            onPick = { ui.sort = it; pickingSort = false },
+            onDismiss = { pickingSort = false },
         )
     }
     }
@@ -309,6 +387,8 @@ private fun DexRow(
     start: Boolean = false,
     /** Where the save keeps it ([holdingLabel]). */
     holding: String? = null,
+    /** The stat the list is sorted by, drawn at the row's end; null = none. */
+    stat: Int? = null,
     onClick: () -> Unit,
 ) {
     val u = m.u
@@ -341,6 +421,10 @@ private fun DexRow(
             m, Modifier.weight(1f),
         )
         holding?.let { GbaText(it, OptionColors.muted, OptionColors.mutedShadow, small) }
+        stat?.let {
+            Spacer(Modifier.width(u * 6))
+            GbaText("$it", OptionColors.value, OptionColors.valueShadow, m)
+        }
     }
 }
 
@@ -381,12 +465,14 @@ fun PokedexEntryScreen(
     dex: PokedexState, ui: DexUiState, current: Int, modifier: Modifier = Modifier, guide: GuideTables? = null,
     /** Back's way out; null = back to the dex list. A party summary's jump comes back to that summary instead. */
     onBack: (() -> Unit)? = null,
+    /** The list's [dexHoldings], so stepping through entries follows its PARTY + PC. */
+    holdings: Map<Int, Int>? = null,
 ) {
     // Dense pages sized to Pixel Operator: a game font keeps its metrics here.
     val m = rememberGbaTextMetrics()
     val small = rememberGbaTextMetrics(1f)
     val order = rememberDexOrder(dex, ui.showsNational(dex))
-    val entries = ui.entries(dex, order, rememberSpeciesMap(dex.tables))
+    val entries = rememberDexList(dex, ui, order, rememberSpeciesMap(dex.tables), holdings).entries
     val index = entries.indexOf(current)
     val step = { d: Int ->
         if (entries.isNotEmpty()) {

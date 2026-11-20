@@ -1092,6 +1092,11 @@ is found by shape in the first 16 MB), plus gifts / trades from the area data. M
 `GuideTables.learnsets` / `SpeciesInfoDex.levelUpOff` / `PokedexTables.levelUpLearnsets`, then TM / HM
 (`tmhmLearnsets` + `tmhmMoves`, retail only, checked on BULBASAUR) or expansion's `teachableOff` list; CFRU / Gaia /
 Glazed / Odyssey say level-up only. Celia has no evolutions or learnsets located; Rogue no learnsets (its baked profiles).
+**DEX list filters**: under the seen / caught rows (`DexFilter`; PARTY + PC = `dexHoldings`, only where the boxes are read) the
+list has TYPE (a seen type, then `TypeRelation` IS / HITS {0} HARD / RESISTS {0} over the running game's chart), NAME (`DexNameSearch`:
+a letter grid in the left column, contains, keys that would find nothing dimmed) and SORT (`DexSort`: a base stat, highest first, read
+by `rememberDexStats` for seen entries only while one is on). The rules are pure in `DexQuery.kt` (`DexQueryTest`); `rememberDexList`
+gives the list and the entry page the same order. ui-preview `emerald-dex-list-*` (needs `-Prom`).
 **Move advice (GitHub #45, phases 1-2: the original games only)**: `MoveAdvisor` (`data/MoveAdvice.kt`) scores a moveset
 as the mean over defending types of its best hit (power x accuracy x1.5 own type x the stat it runs on - Gen 3 splits
 physical / special by type) plus status / side-effect tiers by gBattleMoves effect (a share of that score, less for a second

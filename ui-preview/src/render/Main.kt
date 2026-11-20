@@ -821,7 +821,38 @@ fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h:
         com.pokedaisy.app.companion.ui.DexSection.AREA to if (game == GameKind.EMERALD) 263 else 129,
         com.pokedaisy.app.companion.ui.DexSection.MOVES to if (game == GameKind.EMERALD) 252 else 1,
     )
-    return entries.map { (section, entry) ->
+    // The list's filters: a type relation with a stat SORT, NAME's letter grid, PARTY + PC (five caught entries stand in
+    // for the party and boxes), and the pick-lists.
+    fun listShot(name: String, setUp: com.pokedaisy.app.companion.ui.DexUiState.() -> Unit, tap: (SkikoComposeUiTest.() -> Unit)? = null) =
+        Shot("$g-dex-list-$name", w, h, d, {
+            val holdings = dex.caught.sorted().take(5).withIndex().associate { (i, n) -> PokedexSource.speciesFor(dex.tables, n) to i }
+            val content: @Composable () -> Unit = {
+                com.pokedaisy.app.companion.ui.theme.AppTheme {
+                    val ui = androidx.compose.runtime.remember {
+                        com.pokedaisy.app.companion.ui.DexUiState(androidx.compose.foundation.lazy.LazyListState()).apply(setUp)
+                    }
+                    com.pokedaisy.app.companion.ui.CompanionScreenSize { com.pokedaisy.app.companion.ui.PokedexScreen(dex, ui, holdings = holdings) }
+                }
+            }
+            content
+        }) { waitUntil(5_000) { onAllNodesWithText("LOADING").fetchSemanticsNodes().isEmpty() }; tap?.invoke(this) }
+    val listShots = listOf(
+        listShot("query", {
+            filter = com.pokedaisy.app.companion.ui.DexFilter.SEEN
+            type = "Water"; relation = com.pokedaisy.app.companion.data.TypeRelation.HITS
+            sort = com.pokedaisy.app.companion.data.DexSort.ATTACK
+        }),
+        listShot("name-grid", { name = "AR"; typing = true }),
+        listShot("name", { name = "AR"; sort = com.pokedaisy.app.companion.data.DexSort.SPEED }),
+        listShot("held", { filter = com.pokedaisy.app.companion.ui.DexFilter.HELD; sort = com.pokedaisy.app.companion.data.DexSort.TOTAL }),
+        listShot("relation-pick", {}) {
+            onNodeWithText("TYPE: ALL").performSemanticsAction(SemanticsActions.OnClick)
+            waitForIdle()
+            onNodeWithText("WATER").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        listShot("sort-pick", {}) { onNodeWithText("SORT: DEX NO.").performSemanticsAction(SemanticsActions.OnClick) },
+    )
+    return listShots + entries.map { (section, entry) ->
         Shot("$g-dex-${section.name.lowercase()}", w, h, d, {
             val s = live(snapshot())
             val content: @Composable () -> Unit = {

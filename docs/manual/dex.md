@@ -13,9 +13,10 @@ The `DEX` tab is your Pokédex, read from your save, with entries that go furthe
 The left side shows your counts and filters:
 
 - `SEEN` and `OWNED`: how many you've seen and caught in the dex you're looking at.
-- A filter list with the count for each: `ALL`, `CAUGHT`, `SEEN ONLY` (seen but not caught yet) and `NOT SEEN`. Tap one to narrow the list.
-- `TYPE`: shows only the Pokémon of one type. A Pokémon counts once you've seen it, as in the games' own dex search.
-- `NAME`: shows only the names starting with one letter, handy for finding a Pokémon without scrolling.
+- A filter list with the count for each: `ALL`, `CAUGHT`, `PARTY + PC`, `SEEN ONLY` (seen but not caught yet) and `NOT SEEN`. Tap one to narrow the list. `PARTY + PC` lists the Pokémon you hold right now, in your party or your boxes, while `CAUGHT` also counts ones you traded away or evolved. It shows in the games whose boxes the companion reads.
+- `TYPE`: pick a type, then how a Pokémon should relate to it. `IS` means one of its types is that type. `HITS ... HARD` means one of its own types is super effective on that type: before a gym, pick the gym's type together with `PARTY + PC`. `RESISTS` means that type does less than normal damage to it. A Pokémon counts once you've seen it, as in the games' own dex search.
+- `NAME`: opens a letter grid in place of the filters. Tap letters and the list narrows as you go to the names that contain them, handy for finding a Pokémon without scrolling. A letter that would find nothing is greyed out. `DEL` takes a letter back, `CLEAR` empties the name and `OK` closes the grid and keeps the name.
+- `SORT`: the dex's own order (`DEX NO.`), or a base stat, highest first: `HP`, `ATTACK`, `DEFENSE`, `SP. ATK`, `SP. DEF`, `SPEED` or `TOTAL`. Each row then shows that number at its end. Pokémon you haven't seen go last.
 - A button that flips between the regional dex and the `NATIONAL DEX`, in games that have both. It starts on the one your save is using: regional until the game gives you the national one.
 
 The right side is the numbered list. A red ball marks a Pokémon you've caught, a grey one a Pokémon you've only seen. Ones you haven't seen are greyed out.

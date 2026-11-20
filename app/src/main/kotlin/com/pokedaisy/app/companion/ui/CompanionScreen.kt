@@ -733,9 +733,10 @@ fun CompanionScreen(
                             boxesUi.swapAnim?.let { BoxSwapAnimation(it, snapshot.pokedex?.tables, onDone = { boxesUi.swapAnim = null }) }
                             BoxSwapNotice(boxesUi)
                         } else if (tab == "DEX" && dex != null) {
+                            val holdings = remember(snapshot.party, pcBoxes) { com.pokedaisy.app.companion.data.dexHoldings(snapshot.party, pcBoxes) }
                             if (paneKey == "DEX/DETAIL") {
                                 PokedexEntryScreen(
-                                    dex, dexUi, lastDexEntry.value, guide = snapshot.guideTables,
+                                    dex, dexUi, lastDexEntry.value, guide = snapshot.guideTables, holdings = holdings,
                                     onBack = dexBackToParty?.let { partySlot ->
                                         {
                                             dexUi.open = null
@@ -745,10 +746,7 @@ fun CompanionScreen(
                                         }
                                     },
                                 )
-                            } else PokedexScreen(
-                                dex, dexUi,
-                                holdings = remember(snapshot.party, pcBoxes) { com.pokedaisy.app.companion.data.dexHoldings(snapshot.party, pcBoxes) },
-                            )
+                            } else PokedexScreen(dex, dexUi, holdings = holdings)
                         } else if (tab == "GUIDE" && guide != null) {
                             if (noticeAccepted) GuideScreen(guide, guideUi, snapshot)
                             else GuideNotice(
